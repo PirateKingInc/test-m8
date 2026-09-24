@@ -22,3 +22,20 @@ test('right-clicking a crystal with drones starts the gather loop and Lumen rise
   await expect.poll(() => page.locator('#lumen').textContent().then(Number), { timeout: 30000 }).toBeGreaterThan(250);
   expect(errors).toEqual([]);
 });
+
+test('Command Core queue: Q trains Drones, clicking a slot cancels with a full refund', async ({ page }) => {
+  const errors = await openGame(page);
+  const core = await toScreen(page, 10 * 32, 29 * 32);
+  await page.mouse.click(core.x, core.y);
+  await expect(page.locator('#command-card button')).toHaveText(/Drone/);
+  await page.keyboard.press('KeyQ');
+  await page.keyboard.press('KeyQ');
+  await expect(page.locator('#lumen')).toHaveText('150');
+  await expect(page.locator('.queue button')).toHaveCount(2);
+  await page.locator('.queue button').nth(1).click();
+  await expect(page.locator('#lumen')).toHaveText('200');
+  await expect(page.locator('.queue button')).toHaveCount(1);
+  await page.keyboard.press('Backspace');
+  await expect(page.locator('#lumen')).toHaveText('250');
+  expect(errors).toEqual([]);
+});

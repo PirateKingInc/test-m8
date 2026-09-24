@@ -8,6 +8,7 @@ import { Pathfinder } from './pathfinder.js';
 import { issueCommand, thinkUnit } from './orders.js';
 import { updateConstruction } from './construction.js';
 import './economy.js';
+import { updateProduction } from './production.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).
@@ -109,6 +110,7 @@ export class World {
     for (const u of units) { u.px = u.x; u.py = u.y; }
     for (const u of units) thinkUnit(this, u, SIM_DT);
     updateConstruction(this, SIM_DT);
+    updateProduction(this, SIM_DT);
     this.time += SIM_DT;
     this.tick++;
   }

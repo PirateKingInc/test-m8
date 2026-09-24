@@ -31,3 +31,8 @@ body { font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
 #command-card button.active { border-color: #7dffb0; background: #16302a; }
 #command-card .key { position: absolute; left: 3px; top: 1px; color: var(--accent); font-weight: 700; }
 #command-card .cost { position: absolute; right: 3px; top: 1px; color: var(--lumen); }
+.queue { display: flex; gap: 4px; margin-top: 6px; }
+.queue button { position: relative; overflow: hidden; width: 74px; height: 26px; background: #131c2a; color: var(--text);
+  border: 1px solid var(--edge); border-radius: 3px; font-size: 11px; cursor: pointer; }
+.queue button:hover { border-color: #ff5a5a; }
+.queue button i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
