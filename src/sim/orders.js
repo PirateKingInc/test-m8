@@ -1,6 +1,6 @@
 // Command handling (the only way the UI, tests or a future AI change the world)
 // and the per-unit order state machine.
-import { setDestination, followPath, clearPath } from './movement.js';
+import { setDestination, followPath, clearPath, tryMove } from './movement.js';
 import { formationSlots } from './selection.js';
 
 const handlers = {
@@ -45,11 +45,33 @@ export function ownUnits(world, cmd) {
   return out;
 }
 
+const ANCHOR_SLACK = 4; // px an idle unit may be nudged before drifting back
+const ANCHOR_MAX = 96; // pushed further than this: accept the new spot
+const ANCHOR_PATIENCE = 2; // s without progress before giving up the anchor
+
+// Where a unit settled after a move. Idle units that get shoved a little by
+// passing traffic drift back, so formations keep their shape.
+export function setAnchor(u) {
+  u.anchor = { x: u.x, y: u.y, best: 0, t: 0 };
+}
+
+function driftHome(world, u, dt) {
+  const a = u.anchor;
+  if (!a) return;
+  const d = Math.hypot(a.x - u.x, a.y - u.y);
+  if (d <= ANCHOR_SLACK) { a.t = 0; a.best = d; return; }
+  if (d > ANCHOR_MAX) { u.anchor = null; return; }
+  if (a.t === 0 || d < a.best - 0.5) { a.best = d; a.t = dt; } else a.t += dt;
+  if (a.t > ANCHOR_PATIENCE) { u.anchor = null; return; }
+  const step = Math.min(d, u.speed * 0.5 * dt);
+  tryMove(world, u, ((a.x - u.x) / d) * step, ((a.y - u.y) / d) * step);
+}
+
 const thinkers = {
-  idle() {},
+  idle: driftHome,
   move(world, u, dt) {
     const r = followPath(world, u, dt);
-    if (r !== 'moving') u.order = { type: 'idle' };
+    if (r !== 'moving') { u.order = { type: 'idle' }; setAnchor(u); }
   },
 };
 
