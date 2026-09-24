@@ -17,6 +17,24 @@ export class Hud {
       sound: doc.getElementById('sound'),
     };
     this.cardSig = '';
+    this.groupsEl = doc.getElementById('groups');
+    this.groupsSig = '';
+    this.groupsEl.innerHTML = Array.from({ length: 9 }, (_, i) => `<button data-group="${i + 1}"><b>${i + 1}</b><span></span></button>`).join('');
+    const slot = (ev) => ev.target.closest('button[data-group]');
+    this.groupsEl.addEventListener('click', (ev) => {
+      const b = slot(ev);
+      if (!b || !this.ui) return;
+      if (ev.shiftKey || ev.ctrlKey) this.ui.assignGroup(Number(b.dataset.group));
+      else this.ui.recallGroup(Number(b.dataset.group));
+    });
+    this.groupsEl.addEventListener('contextmenu', (ev) => {
+      const b = slot(ev);
+      ev.preventDefault();
+      if (b && this.ui) this.ui.assignGroup(Number(b.dataset.group));
+    });
+    const fs = doc.getElementById('fullscreen');
+    fs.addEventListener('click', () => enterFullscreenWithKeyLock(doc));
+    doc.addEventListener('fullscreenchange', () => { fs.textContent = doc.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen'; });
     this.dev = doc.getElementById('dev-panel');
     doc.addEventListener('keydown', (ev) => { if (ev.code === 'Backquote') this.dev.hidden = !this.dev.hidden; });
     this.dev.addEventListener('click', (ev) => {
@@ -58,6 +76,7 @@ export class Hud {
     this.el.fps.textContent = `${Math.round(fps)} fps`;
     if (!ui) return;
     this.ui = ui;
+    this.updateGroups(world, ui);
     // Only touch the DOM when content changes, so buttons stay clickable.
     const sel = ui.selection.entities(world);
     const html = this.selectionHtml(world, sel);
@@ -72,6 +91,17 @@ export class Hud {
       this.el.card.innerHTML = card.map((b) => `<button data-action="${b.action}" ${b.enabled ? '' : 'disabled'} class="${b.active ? 'active' : ''}" title="${b.label} (${b.key})">`
         + `<span class="key">${b.key}</span>${b.label}${b.cost != null ? `<span class="cost">${b.cost}</span>` : ''}</button>`).join('');
     }
+  }
+
+  updateGroups(world, ui) {
+    const counts = Array.from({ length: 9 }, (_, i) => (ui.groups.groups.get(i + 1) || []).filter((id) => world.get(id)?.hp > 0).length);
+    const sig = counts.join(',');
+    if (sig === this.groupsSig) return;
+    this.groupsSig = sig;
+    this.groupsEl.querySelectorAll('button').forEach((b, i) => {
+      b.querySelector('span').textContent = counts[i] ? `×${counts[i]}` : '';
+      b.classList.toggle('empty', !counts[i]);
+    });
   }
 
   queueHtml(e) {
@@ -93,5 +123,19 @@ export class Hud {
     const counts = {};
     for (const e of sel) counts[nameOf(e)] = (counts[nameOf(e)] || 0) + 1;
     return `<div class="sel-name">${sel.length} selected</div><div class="dim">${Object.entries(counts).map(([n, c]) => `${n} ×${c}`).join(' · ')}</div>`;
+  }
+}
+
+// Fullscreen plus the Keyboard Lock API: in Chrome this makes Ctrl+1-9 reach the
+// page instead of switching tabs. Where either API is missing it fails quietly.
+export async function enterFullscreenWithKeyLock(doc = document) {
+  try {
+    if (doc.fullscreenElement) { await doc.exitFullscreen(); return false; }
+    await doc.documentElement.requestFullscreen();
+    const keys = Array.from({ length: 9 }, (_, i) => `Digit${i + 1}`);
+    await globalThis.navigator?.keyboard?.lock?.(keys);
+    return true;
+  } catch {
+    return false;
   }
 }

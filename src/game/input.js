@@ -203,9 +203,10 @@ export class InputController {
     if (m) {
       e.preventDefault();
       const n = Number(m[1]);
+      // Shift+digit is the primary assign key: desktop Chrome reserves Ctrl+1-8 for
+      // tab switching and never delivers them (unless fullscreen Keyboard Lock is on).
       if (e.ctrlKey || e.metaKey || e.shiftKey) {
-        this.groups.assign(n, this.selection.ids.filter((id) => this.world.get(id)?.team === PLAYER));
-        this.notify('group-assign', { n });
+        this.assignGroup(n);
       } else {
         this.recallGroup(n);
       }
@@ -217,6 +218,12 @@ export class InputController {
     if (e.code === 'KeyS') { this.world.issue({ type: 'stop', ids: this.selection.ids }); return; }
     const btn = this.commandCard().find((b) => `Key${b.key}` === e.code);
     if (btn && btn.enabled) this.action(btn.action);
+  }
+
+  assignGroup(n) {
+    const ids = this.selection.ids.filter((id) => this.world.get(id)?.team === PLAYER);
+    this.groups.assign(n, ids);
+    this.notify('group-assign', { n, ids });
   }
 
   recallGroup(n) {
