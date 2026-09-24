@@ -85,6 +85,13 @@ export function drawBuilding(g, b, color) {
     g.fillCircle(cx, cy - 6, 4);
   }
   if (!b.built) {
+    // Construction: a rising fill plus a progress bar under the footprint.
+    g.fillStyle(color, 0.18);
+    g.fillRect(l, t + h * (1 - b.progress), w, h * b.progress);
+    g.fillStyle(0x000000, 0.6);
+    g.fillRect(l, t + h + 4, w, 4);
+    g.fillStyle(0xffc24a, 1);
+    g.fillRect(l, t + h + 4, w * b.progress, 4);
     g.lineStyle(1, 0xffffff, 0.35);
     for (let i = -h; i < w; i += 12) {
       g.lineBetween(l + Math.max(i, 0), t + Math.max(-i, 0), l + Math.min(i + h, w), t + Math.min(h, w - i));
@@ -93,8 +100,9 @@ export function drawBuilding(g, b, color) {
 }
 
 // Each unit type has its own silhouette, rotated to face its heading.
-export function drawUnit(g, u, x, y, color) {
+export function drawUnit(g, u, x, y, color, now = 0) {
   const r = u.radius, a = u.facing || 0;
+  if (u.lastHit !== undefined && now - u.lastHit < 0.09) color = 0xffffff; // hit flash
   const cos = Math.cos(a), sin = Math.sin(a);
   const P = (fx, fy) => ({ x: x + fx * cos - fy * sin, y: y + fx * sin + fy * cos }); // local -> world
   const poly = (pts, fill, alpha = 1) => { g.fillStyle(fill, alpha); g.fillPoints(pts.map(([px, py]) => P(px, py)), true); };
@@ -160,11 +168,12 @@ export function drawSelection(g, e, x, y) {
 
 // Returns false once the marker has expired.
 export function drawMarker(g, m, now) {
-  const age = now - m.t, life = 0.6;
+  const age = now - m.t, life = 0.7;
   if (age > life) return false;
   const k = 1 - age / life;
   g.lineStyle(2, MARKER_COLORS[m.kind] ?? SELECT, k);
   g.strokeCircle(m.x, m.y, 4 + 14 * k);
+  g.strokeCircle(m.x, m.y, 2 + 26 * (1 - k) * (1 - k)); // outward pulse
   g.lineBetween(m.x - 5, m.y, m.x + 5, m.y);
   g.lineBetween(m.x, m.y - 5, m.x, m.y + 5);
   return true;
