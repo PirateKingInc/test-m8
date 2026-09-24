@@ -15,6 +15,12 @@ export class Hud {
       card: doc.getElementById('command-card'),
     };
     this.cardSig = '';
+    this.dev = doc.getElementById('dev-panel');
+    doc.addEventListener('keydown', (ev) => { if (ev.code === 'Backquote') this.dev.hidden = !this.dev.hidden; });
+    this.dev.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-spawn]');
+      if (btn && this.ui) { this.ui.devSpawn = btn.dataset.spawn; this.ui.attackMode = false; this.ui.placing = null; }
+    });
     this.el.selection.addEventListener('click', (ev) => {
       const slot = ev.target.closest('[data-cancel]');
       if (slot) this.ui?.action(`cancel-train:${slot.dataset.cancel}`);
