@@ -1,5 +1,6 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawBuilding, drawUnit, TEAM_COLORS } from './draw.js';
+import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, TEAM_COLORS } from './draw.js';
+import { InputController } from './input.js';
 
 const Phaser = globalThis.Phaser;
 const PAN_SPEED = 900; // px/s
@@ -43,6 +44,7 @@ export class GameScene extends Phaser.Scene {
       if (p.middleButtonDown()) this.midDrag = { x: p.x, y: p.y, sx: cam.scrollX, sy: cam.scrollY };
     });
     this.input.on('pointerup', () => { this.midDrag = null; });
+    this.ui = new InputController(this, w);
   }
 
   centerOnCore() {
@@ -81,7 +83,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
     this.render(this.acc / SIM_DT);
-    this.hud?.update(this.world, this.game.loop.actualFps);
+    this.hud?.update(this.world, this.game.loop.actualFps, this.ui);
   }
 
   render(alpha) {
@@ -89,9 +91,21 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     for (const n of w.ofKind('node')) drawNode(g, n, w.time);
     for (const b of w.ofKind('building')) drawBuilding(g, b, TEAM_COLORS[b.team]);
+    const sel = this.ui.selection;
+    for (const b of w.ofKind('building')) if (sel.has(b.id)) drawSelection(g, b, b.x, b.y);
+    for (const n of w.ofKind('node')) if (sel.has(n.id)) drawSelection(g, n, n.x, n.y);
     for (const u of w.ofKind('unit')) {
       const x = u.px + (u.x - u.px) * alpha, y = u.py + (u.y - u.py) * alpha;
+      if (sel.has(u.id)) drawSelection(g, u, x, y);
       drawUnit(g, u, x, y, TEAM_COLORS[u.team]);
+    }
+    this.ui.markers = this.ui.markers.filter((m) => drawMarker(g, m, w.time));
+    const d = this.ui.drag;
+    if (d?.moved) {
+      g.fillStyle(0x39d3c3, 0.08);
+      g.fillRect(Math.min(d.wx, d.cx), Math.min(d.wy, d.cy), Math.abs(d.cx - d.wx), Math.abs(d.cy - d.wy));
+      g.lineStyle(1, 0x39d3c3, 0.9);
+      g.strokeRect(Math.min(d.wx, d.cx), Math.min(d.wy, d.cy), Math.abs(d.cx - d.wx), Math.abs(d.cy - d.wy));
     }
   }
 }
