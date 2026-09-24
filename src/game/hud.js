@@ -15,6 +15,10 @@ export class Hud {
       card: doc.getElementById('command-card'),
     };
     this.cardSig = '';
+    this.el.selection.addEventListener('click', (ev) => {
+      const slot = ev.target.closest('[data-cancel]');
+      if (slot) this.ui?.action(`cancel-train:${slot.dataset.cancel}`);
+    });
     this.el.card.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-action]');
       if (btn && !btn.disabled) this.ui?.action(btn.dataset.action);
@@ -33,7 +37,13 @@ export class Hud {
     this.el.fps.textContent = `${Math.round(fps)} fps`;
     if (!ui) return;
     this.ui = ui;
-    this.el.selection.innerHTML = this.selectionHtml(world, ui.selection.entities(world));
+    // Only touch the DOM when content changes, so buttons stay clickable.
+    const sel = ui.selection.entities(world);
+    const html = this.selectionHtml(world, sel);
+    if (html !== this.selHtml) { this.selHtml = html; this.el.selection.innerHTML = html; }
+    const bar = this.el.selection.querySelector('.queue i');
+    const q = sel.length === 1 && sel[0].queue?.[0];
+    if (bar && q) bar.style.width = `${Math.floor((q.progress / UNITS[q.unit].trainTime) * 100)}%`;
     const card = ui.commandCard();
     const sig = JSON.stringify(card);
     if (sig !== this.cardSig) {
@@ -43,6 +53,12 @@ export class Hud {
     }
   }
 
+  queueHtml(e) {
+    if (e.kind !== 'building' || !e.queue?.length) return '';
+    // The first slot's progress bar is updated in place by update().
+    return `<div class="queue">${e.queue.map((q, i) => `<button data-cancel="${i}" title="Cancel (full refund)">${UNITS[q.unit].name}${i === 0 ? '<i></i>' : ''}</button>`).join('')}</div>`;
+  }
+
   selectionHtml(world, sel) {
     if (!sel.length) return '<span class="dim">Nothing selected. Left-click or drag to select; right-click to command.</span>';
     if (sel.length === 1) {
@@ -50,7 +66,8 @@ export class Hud {
       const stat = e.kind === 'node' ? `${Math.ceil(e.amount)} / ${e.maxAmount} Lumen`
         : `HP ${Math.ceil(e.hp)} / ${e.maxHp}${e.kind === 'unit' ? ` · ${e.order.type}` : ''}${e.carry ? ` · carrying ${e.carry}` : ''}`;
       const team = e.team && e.team !== PLAYER ? ' <span class="enemy">(test target team)</span>' : '';
-      return `<div class="sel-name">${nameOf(e)}${team}</div><div class="dim">${stat}</div>`;
+      const building = e.kind === 'building' && !e.built ? ` · building ${Math.floor(e.progress * 100)}%` : '';
+      return `<div class="sel-name">${nameOf(e)}${team}</div><div class="dim">${stat}${building}</div>${this.queueHtml(e)}`;
     }
     const counts = {};
     for (const e of sel) counts[nameOf(e)] = (counts[nameOf(e)] || 0) + 1;

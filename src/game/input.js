@@ -1,7 +1,8 @@
 // Mouse/keyboard -> selection state and world commands. Never mutates the sim directly.
 import { pickAt, boxSelect, Selection, ControlGroups } from '../sim/selection.js';
 import { PLAYER } from '../sim/constants.js';
-import { BUILDINGS, BUILD_ORDER } from '../data/buildings.js';
+import { BUILDINGS, BUILD_ORDER, PRODUCTION } from '../data/buildings.js';
+import { UNITS } from '../data/units.js';
 import { canPlace } from '../sim/construction.js';
 
 const DRAG_THRESHOLD = 6; // px on screen
@@ -107,6 +108,13 @@ export class InputController {
         return { key: d.hotkey, label: d.name, cost: d.cost, action: `build:${type}`, enabled: lumen >= d.cost, active: this.placing === type };
       });
     }
+    const trainer = sel.length === 1 && sel[0].kind === 'building' && sel[0].built ? sel[0] : null;
+    if (trainer && BUILDINGS[trainer.type].trains.length) {
+      return BUILDINGS[trainer.type].trains.map((unit, i) => ({
+        key: 'QWER'[i], label: UNITS[unit].name, cost: UNITS[unit].cost, action: `train:${unit}`,
+        enabled: lumen >= UNITS[unit].cost && trainer.queue.length < PRODUCTION.maxQueue,
+      }));
+    }
     if (sel.length === 1 && sel[0].kind === 'building' && !sel[0].built) {
       return [{ key: 'X', label: 'Cancel build', cost: null, action: 'cancel-build', enabled: true }];
     }
@@ -116,6 +124,12 @@ export class InputController {
   action(name) {
     const [verb, arg] = name.split(':');
     if (verb === 'build') this.placing = arg;
+    else if (verb === 'train' || verb === 'cancel-train') {
+      const b = this.ownSelected('building')[0];
+      if (!b) return;
+      if (verb === 'train') this.world.issue({ type: 'train', building: b.id, unit: arg });
+      else this.world.issue({ type: 'cancelTrain', building: b.id, index: arg === undefined ? undefined : Number(arg) });
+    }
     else if (verb === 'cancel-build') {
       const b = this.ownSelected('building')[0];
       if (b) this.world.issue({ type: 'cancelBuild', id: b.id });
@@ -126,6 +140,12 @@ export class InputController {
   // Right-click: contextual command for the selection.
   command(x, y) {
     const units = this.ownSelected('unit');
+    const producers = this.ownSelected('building').filter((b) => BUILDINGS[b.type].trains.length);
+    if (!units.length && producers.length) {
+      for (const b of producers) this.world.issue({ type: 'rally', building: b.id, x, y });
+      this.mark(x, y, 'move');
+      return;
+    }
     if (!units.length) return;
     const target = pickAt(this.world, x, y);
     const drones = units.filter((u) => u.type === 'drone');
@@ -169,6 +189,7 @@ export class InputController {
       return;
     }
     if (e.code === 'Escape') { this.placing = null; return; }
+    if (e.code === 'Backspace') { e.preventDefault(); this.action('cancel-train'); return; }
     if (e.code === 'KeyS') { this.world.issue({ type: 'stop', ids: this.selection.ids }); return; }
     const btn = this.commandCard().find((b) => `Key${b.key}` === e.code);
     if (btn && btn.enabled) this.action(btn.action);

@@ -90,8 +90,9 @@ intended winner must win **at least 80%** of them.
   Cancelling any queued item, including the one in progress, refunds
   **100%**. A trained unit appears on the nearest free tile next to the
   building and walks to the rally point if one is set.
-- Construction and production pause when the resource isn't available. No
-  debt is allowed: a command that costs more than the stockpile is rejected.
+- No debt is allowed. Costs are paid up front (on placement or on queueing),
+  and a command that costs more than the stockpile is rejected with an
+  "insufficient Lumen" cue.
 
 ## Map (`src/data/map.js`)
 
