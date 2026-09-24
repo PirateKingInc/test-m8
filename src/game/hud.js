@@ -13,6 +13,8 @@ export class Hud {
       fps: doc.getElementById('fps'),
       selection: doc.getElementById('selection-panel'),
       card: doc.getElementById('command-card'),
+      toast: doc.getElementById('toast'),
+      sound: doc.getElementById('sound'),
     };
     this.cardSig = '';
     this.dev = doc.getElementById('dev-panel');
@@ -30,6 +32,19 @@ export class Hud {
       if (btn && !btn.disabled) this.ui?.action(btn.dataset.action);
     });
     this.lastRefresh = 0;
+  }
+
+  setMuted(muted) {
+    this.el.sound.textContent = muted ? 'Sound off (M)' : 'Sound on (M)';
+  }
+
+  toast(text) {
+    if (!text) return;
+    const el = this.el.toast;
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth; // restart the fade animation
+    el.classList.add('show');
   }
 
   update(world, fps, ui) {

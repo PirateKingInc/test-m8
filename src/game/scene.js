@@ -8,10 +8,11 @@ const EDGE = 14; // px from the canvas edge that triggers edge-panning
 const MAX_STEPS_PER_FRAME = 8; // avoid a spiral of death after a stall
 
 export class GameScene extends Phaser.Scene {
-  constructor(world, hud) {
+  constructor(world, hud, sfx) {
     super('game');
     this.world = world;
     this.hud = hud;
+    this.sfx = sfx;
     this.acc = 0;
   }
 
@@ -45,6 +46,9 @@ export class GameScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this.midDrag = null; });
     this.ui = new InputController(this, w);
+    this.ui.on((name) => {
+      if (name === 'select' || name === 'command') this.sfx?.ui(name);
+    });
   }
 
   centerOnCore() {
@@ -86,6 +90,12 @@ export class GameScene extends Phaser.Scene {
       steps++;
     }
     if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
+    const events = this.world.drainEvents();
+    if (events.length) {
+      const mid = this.cameras.main.midPoint;
+      this.sfx?.handle(events, mid.x, mid.y);
+      for (const e of events) if (e.type === 'rejected' && e.team === 1) this.hud?.toast(e.reason);
+    }
     this.render(this.acc / SIM_DT);
     this.hud?.update(this.world, this.game.loop.actualFps, this.ui);
   }
