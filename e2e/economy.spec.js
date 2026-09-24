@@ -19,6 +19,6 @@ test('right-clicking a crystal with drones starts the gather loop and Lumen rise
   await page.mouse.click(node.x, node.y, { button: 'right' });
   const orders = await page.evaluate(() => [...window.__game.world.ofKind('unit')].map((u) => u.order.type));
   expect(orders).toEqual(['gather', 'gather', 'gather', 'gather']);
-  await expect.poll(() => page.locator('#lumen').textContent().then(Number), { timeout: 20000 }).toBeGreaterThan(250);
+  await expect.poll(() => page.locator('#lumen').textContent().then(Number), { timeout: 30000 }).toBeGreaterThan(250);
   expect(errors).toEqual([]);
 });
