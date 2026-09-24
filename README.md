@@ -19,8 +19,8 @@ All art is drawn in code, and all audio is synthesized with the Web Audio API.
 | Right-click | Context command: move in formation, **attack** an enemy or test target, **gather** a crystal (Drones), return cargo at a Depot, help build an unfinished building. With a Core or Foundry selected, it sets the rally point. |
 | **A**, then left-click | Attack-move |
 | **S** | Stop |
-| **Ctrl+1–9** (or **Shift+1–9**) | Assign a control group. Desktop Chrome reserves Ctrl+1–8 for tabs, so use Shift there. |
-| **1–9** | Select a control group (press twice to center the camera) |
+| **Shift+1–9** (or Ctrl+1–9) | Assign a control group. Desktop Chrome swallows Ctrl+1–8 for tab switching, so Shift is the primary key. The **Fullscreen** button turns on Keyboard Lock so Ctrl works too, and the HUD group bar assigns on right-click or Shift-click. |
+| **1–9** / click a group slot | Select a control group (press twice to center the camera) |
 | **Q W E R** with a Drone selected | Place a Command Core, Lumen Depot, Foundry or Sentry Spire. Left-click places it, Shift+click places several, and Esc or right-click cancels. |
 | **Q** with the Core selected | Train a Drone |
 | **Q W E R** with the Foundry selected | Train a Striker, Sparker, Bulwark or Lancer |

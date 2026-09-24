@@ -46,3 +46,11 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
   text-shadow: 0 1px 3px #000; opacity: 0; pointer-events: none; }
 #toast.show { animation: toast 1.6s ease-out; }
 @keyframes toast { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+#groups { position: absolute; left: 12px; bottom: 112px; display: flex; gap: 3px; }
+#groups button { width: 34px; height: 30px; background: var(--panel); color: var(--text); border: 1px solid var(--edge);
+  border-radius: 3px; font-size: 10px; cursor: pointer; padding: 0; line-height: 1.1; }
+#groups button b { display: block; color: var(--accent); font-size: 11px; }
+#groups button.empty { opacity: 0.45; }
+#groups button:hover { border-color: var(--accent); opacity: 1; }
+#fullscreen { background: transparent; color: var(--dim); border: 1px solid var(--edge); border-radius: 3px; font-size: 11px;
+  cursor: pointer; pointer-events: auto; }
