@@ -64,6 +64,7 @@ registerOrder('build', (world, u, dt) => {
   if (!b || b.built || b.hp <= 0) { u.order = { type: 'idle' }; clearPath(u); return; }
   if (gap(u, b) <= CONSTRUCTION.builderRange) {
     clearPath(u);
+    u.facing = Math.atan2(b.y - u.y, b.x - u.x);
     b.buildingNow = true;
     return;
   }

@@ -1,6 +1,7 @@
 import { SIM_DT } from '../sim/constants.js';
 import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
+import { Effects } from './effects.js';
 
 const Phaser = globalThis.Phaser;
 const PAN_SPEED = 900; // px/s
@@ -24,6 +25,8 @@ export class GameScene extends Phaser.Scene {
     this.add.renderTexture(0, 0, w.width, w.height).setOrigin(0).draw(terrain);
     terrain.destroy();
     this.gfx = this.add.graphics();
+    this.fxGfx = this.add.graphics().setDepth(5);
+    this.effects = new Effects(this);
 
     const cam = this.cameras.main;
     cam.setBounds(0, -28, w.width, w.height + 28 + 104); // leave room under the HUD bars
@@ -94,6 +97,7 @@ export class GameScene extends Phaser.Scene {
     if (events.length) {
       const mid = this.cameras.main.midPoint;
       this.sfx?.handle(events, mid.x, mid.y);
+      this.effects.add(events, this.world.time);
       for (const e of events) if (e.type === 'rejected' && e.team === 1) this.hud?.toast(e.reason);
     }
     this.render(this.acc / SIM_DT);
@@ -111,13 +115,16 @@ export class GameScene extends Phaser.Scene {
     for (const u of w.ofKind('unit')) {
       const x = u.px + (u.x - u.px) * alpha, y = u.py + (u.y - u.py) * alpha;
       if (sel.has(u.id)) drawSelection(g, u, x, y);
-      drawUnit(g, u, x, y, TEAM_COLORS[u.team]);
+      drawUnit(g, u, x, y, TEAM_COLORS[u.team], w.time);
+      if (u.order.type === 'build' && !u.path && w.tick % 4 < 2) { g.fillStyle(0xffe08a, 1); g.fillCircle(x + Math.cos(u.facing) * u.radius, y + Math.sin(u.facing) * u.radius, 2.5); }
       if (u.hp < u.maxHp || sel.has(u.id)) drawHealth(g, x, y - u.radius - 7, u.radius * 2, u.hp / u.maxHp);
     }
     for (const b of w.ofKind('building')) {
       if (b.hp < b.maxHp || sel.has(b.id)) drawHealth(g, b.x, b.y - b.ph / 2 - 6, b.pw - 12, b.hp / b.maxHp);
     }
     if (this.ui.attackMode || this.ui.devSpawn) drawCrosshair(g, this.ui.hover, this.ui.devSpawn ? 0xff7a45 : 0xff5a5a);
+    this.fxGfx.clear();
+    this.effects.draw(this.fxGfx, w.time);
     const ghost = this.ui.ghost();
     if (ghost) drawGhost(g, ghost, w.grid.tile);
     this.ui.markers = this.ui.markers.filter((m) => drawMarker(g, m, w.time));
