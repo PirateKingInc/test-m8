@@ -105,3 +105,24 @@ export function drawUnit(g, u, x, y, color) {
     g.fillCircle(x, y, r * 0.35);
   }
 }
+
+const SELECT = 0x7dffb0;
+const MARKER_COLORS = { move: 0x7dffb0, attack: 0xff5a5a, gather: 0xb69bff, build: 0xffc24a };
+
+export function drawSelection(g, e, x, y) {
+  g.lineStyle(2, e.team && e.team !== 1 ? 0xff5a5a : SELECT, 0.9);
+  if (e.kind === 'unit') g.strokeEllipse(x, y + e.radius * 0.35, e.radius * 2.6, e.radius * 1.5);
+  else g.strokeRect(x - e.pw / 2 - 2, y - e.ph / 2 - 2, e.pw + 4, e.ph + 4);
+}
+
+// Returns false once the marker has expired.
+export function drawMarker(g, m, now) {
+  const age = now - m.t, life = 0.6;
+  if (age > life) return false;
+  const k = 1 - age / life;
+  g.lineStyle(2, MARKER_COLORS[m.kind] ?? SELECT, k);
+  g.strokeCircle(m.x, m.y, 4 + 14 * k);
+  g.lineBetween(m.x - 5, m.y, m.x + 5, m.y);
+  g.lineBetween(m.x, m.y - 5, m.x, m.y + 5);
+  return true;
+}

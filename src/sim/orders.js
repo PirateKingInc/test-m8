@@ -1,13 +1,16 @@
 // Command handling (the only way the UI, tests or a future AI change the world)
 // and the per-unit order state machine.
 import { setDestination, followPath, clearPath } from './movement.js';
+import { formationSlots } from './selection.js';
 
 const handlers = {
   move(world, cmd) {
     const units = ownUnits(world, cmd);
+    const slots = units.length > 1 ? formationSlots(world, units, cmd.x, cmd.y) : null;
     for (const u of units) {
-      u.order = { type: 'move', x: cmd.x, y: cmd.y };
-      setDestination(world, u, cmd.x, cmd.y);
+      const p = slots ? slots.get(u.id) : cmd;
+      u.order = { type: 'move', x: p.x, y: p.y };
+      setDestination(world, u, p.x, p.y);
     }
     return { ok: units.length > 0 };
   },
