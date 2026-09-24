@@ -1,5 +1,5 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, TEAM_COLORS } from './draw.js';
+import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
 
 const Phaser = globalThis.Phaser;
@@ -102,7 +102,12 @@ export class GameScene extends Phaser.Scene {
       const x = u.px + (u.x - u.px) * alpha, y = u.py + (u.y - u.py) * alpha;
       if (sel.has(u.id)) drawSelection(g, u, x, y);
       drawUnit(g, u, x, y, TEAM_COLORS[u.team]);
+      if (u.hp < u.maxHp || sel.has(u.id)) drawHealth(g, x, y - u.radius - 7, u.radius * 2, u.hp / u.maxHp);
     }
+    for (const b of w.ofKind('building')) {
+      if (b.hp < b.maxHp || sel.has(b.id)) drawHealth(g, b.x, b.y - b.ph / 2 - 6, b.pw - 12, b.hp / b.maxHp);
+    }
+    if (this.ui.attackMode || this.ui.devSpawn) drawCrosshair(g, this.ui.hover, this.ui.devSpawn ? 0xff7a45 : 0xff5a5a);
     const ghost = this.ui.ghost();
     if (ghost) drawGhost(g, ghost, w.grid.tile);
     this.ui.markers = this.ui.markers.filter((m) => drawMarker(g, m, w.time));

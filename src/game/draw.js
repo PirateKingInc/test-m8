@@ -180,3 +180,20 @@ export function drawGhost(g, gh, T) {
   for (let i = 1; i < gh.w; i++) g.lineBetween((gh.tx + i) * T, gh.ty * T, (gh.tx + i) * T, (gh.ty + gh.h) * T);
   for (let i = 1; i < gh.h; i++) g.lineBetween(gh.tx * T, (gh.ty + i) * T, (gh.tx + gh.w) * T, (gh.ty + i) * T);
 }
+
+export function drawHealth(g, x, y, w, frac) {
+  const f = Math.max(0, Math.min(1, frac));
+  g.fillStyle(0x000000, 0.6);
+  g.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
+  g.fillStyle(f > 0.6 ? 0x5cff8a : f > 0.3 ? 0xffd24a : 0xff5a5a, 1);
+  g.fillRect(x - w / 2, y, w * f, 3);
+}
+
+export function drawCrosshair(g, p, color) {
+  g.lineStyle(2, color, 0.9);
+  g.strokeCircle(p.x, p.y, 10);
+  g.lineBetween(p.x - 15, p.y, p.x - 5, p.y);
+  g.lineBetween(p.x + 5, p.y, p.x + 15, p.y);
+  g.lineBetween(p.x, p.y - 15, p.x, p.y - 5);
+  g.lineBetween(p.x, p.y + 5, p.x, p.y + 15);
+}

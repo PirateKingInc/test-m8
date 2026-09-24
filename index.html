@@ -12,8 +12,14 @@
     <span class="brand">PRISM OUTPOST</span>
     <span>Lumen <b id="lumen">0</b></span>
     <span>Units <b id="unit-count">0</b></span>
-    <span class="dim">Phase 1 sandbox, no opponent</span>
+    <span class="dim">Phase 1 sandbox, no opponent · <kbd>`</kbd> dev panel</span>
     <span id="fps" class="dim"></span>
+  </div>
+  <div id="dev-panel" class="hud" hidden>
+    <div class="dev-title">DEV · test targets (verification only, not a game feature)</div>
+    <p class="dim">Click a type, then click the map (Shift+click to place several). Team-2 units only fight back when in range; there is no AI.</p>
+    <button data-spawn="dummy">Test target</button><button data-spawn="drone">Drone</button><button data-spawn="striker">Striker</button>
+    <button data-spawn="sparker">Sparker</button><button data-spawn="bulwark">Bulwark</button><button data-spawn="lancer">Lancer</button>
   </div>
   <div id="hud-bottom" class="hud">
     <div id="selection-panel"></div>

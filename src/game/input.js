@@ -19,6 +19,8 @@ export class InputController {
     this.lastGroup = { n: 0, at: -1 };
     this.listeners = new Set();
     this.placing = null; // building type while in placement mode
+    this.attackMode = false; // A pressed: next left-click is an attack-move
+    this.devSpawn = null; // dev panel: unit type to spawn for team 2 on next left-click
     this.hover = { x: 0, y: 0 };
 
     const input = scene.input;
@@ -36,6 +38,16 @@ export class InputController {
     if (this.placing) {
       if (p.rightButtonDown()) this.placing = null;
       else if (p.leftButtonDown()) this.place(p.event.shiftKey);
+      return;
+    }
+    if (this.attackMode || this.devSpawn) {
+      if (p.leftButtonDown() && this.attackMode) this.attackMoveTo(p.worldX, p.worldY);
+      if (p.leftButtonDown() && this.devSpawn) {
+        this.world.issue({ type: 'devSpawn', unit: this.devSpawn, x: p.worldX, y: p.worldY, team: 2 });
+        if (p.event.shiftKey) return;
+      }
+      this.attackMode = false;
+      this.devSpawn = null;
       return;
     }
     if (p.rightButtonDown()) { this.command(p.worldX, p.worldY); return; }
@@ -149,6 +161,11 @@ export class InputController {
     if (!units.length) return;
     const target = pickAt(this.world, x, y);
     const drones = units.filter((u) => u.type === 'drone');
+    if (target && target.team && target.team !== PLAYER && (target.kind === 'unit' || target.kind === 'building')) {
+      const res = this.world.issue({ type: 'attack', ids: units.map((u) => u.id), target: target.id });
+      if (res.ok) this.mark(target.x, target.y, 'attack');
+      return;
+    }
     if (target?.kind === 'building' && target.team === PLAYER && !target.built && drones.length) {
       this.world.issue({ type: 'assist', ids: drones.map((u) => u.id), target: target.id });
       this.mark(target.x, target.y, 'build');
@@ -170,6 +187,12 @@ export class InputController {
     if (res.ok) this.mark(x, y, 'move');
   }
 
+  attackMoveTo(x, y) {
+    const units = this.ownSelected('unit');
+    const res = this.world.issue({ type: 'attackMove', ids: units.map((u) => u.id), x, y });
+    if (res.ok) this.mark(x, y, 'attack');
+  }
+
   mark(x, y, kind) {
     this.markers.push({ x, y, kind, t: this.world.time });
     this.notify('command', { kind });
@@ -188,7 +211,8 @@ export class InputController {
       }
       return;
     }
-    if (e.code === 'Escape') { this.placing = null; return; }
+    if (e.code === 'Escape') { this.placing = null; this.attackMode = false; this.devSpawn = null; return; }
+    if (e.code === 'KeyA' && this.ownSelected('unit').length) { this.attackMode = true; this.placing = null; return; }
     if (e.code === 'Backspace') { e.preventDefault(); this.action('cancel-train'); return; }
     if (e.code === 'KeyS') { this.world.issue({ type: 'stop', ids: this.selection.ids }); return; }
     const btn = this.commandCard().find((b) => `Key${b.key}` === e.code);
