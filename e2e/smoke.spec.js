@@ -14,14 +14,13 @@ test('game boots, sim ticks, HUD shows the stockpile, no console errors', async 
 
 test('camera pans with arrow keys and stays inside the map', async ({ page }) => {
   await openGame(page);
-  const before = await page.evaluate(() => window.__game.scene.cameras.main.scrollX);
+  await page.mouse.move(640, 400); // keep the pointer away from the edge-pan zones
+  const scrollX = () => page.evaluate(() => window.__game.scene.cameras.main.scrollX);
+  const before = await scrollX();
   await page.keyboard.down('ArrowRight');
-  await page.waitForTimeout(400);
+  await expect.poll(scrollX, { timeout: 5000 }).toBeGreaterThan(before + 50);
   await page.keyboard.up('ArrowRight');
-  const after = await page.evaluate(() => window.__game.scene.cameras.main.scrollX);
-  expect(after).toBeGreaterThan(before);
   await page.keyboard.down('ArrowLeft');
-  await page.waitForTimeout(3000);
+  await expect.poll(scrollX, { timeout: 10000 }).toBe(0);
   await page.keyboard.up('ArrowLeft');
-  expect(await page.evaluate(() => window.__game.scene.cameras.main.scrollX)).toBe(0);
 });
