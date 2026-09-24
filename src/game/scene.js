@@ -1,5 +1,5 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, TEAM_COLORS } from './draw.js';
+import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
 
 const Phaser = globalThis.Phaser;
@@ -99,6 +99,8 @@ export class GameScene extends Phaser.Scene {
       if (sel.has(u.id)) drawSelection(g, u, x, y);
       drawUnit(g, u, x, y, TEAM_COLORS[u.team]);
     }
+    const ghost = this.ui.ghost();
+    if (ghost) drawGhost(g, ghost, w.grid.tile);
     this.ui.markers = this.ui.markers.filter((m) => drawMarker(g, m, w.time));
     const d = this.ui.drag;
     if (d?.moved) {

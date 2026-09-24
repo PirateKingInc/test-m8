@@ -12,7 +12,13 @@ export class Hud {
       units: doc.getElementById('unit-count'),
       fps: doc.getElementById('fps'),
       selection: doc.getElementById('selection-panel'),
+      card: doc.getElementById('command-card'),
     };
+    this.cardSig = '';
+    this.el.card.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-action]');
+      if (btn && !btn.disabled) this.ui?.action(btn.dataset.action);
+    });
     this.lastRefresh = 0;
   }
 
@@ -25,7 +31,16 @@ export class Hud {
     this.el.lumen.textContent = Math.floor(world.resources[PLAYER]);
     this.el.units.textContent = units;
     this.el.fps.textContent = `${Math.round(fps)} fps`;
-    if (ui) this.el.selection.innerHTML = this.selectionHtml(world, ui.selection.entities(world));
+    if (!ui) return;
+    this.ui = ui;
+    this.el.selection.innerHTML = this.selectionHtml(world, ui.selection.entities(world));
+    const card = ui.commandCard();
+    const sig = JSON.stringify(card);
+    if (sig !== this.cardSig) {
+      this.cardSig = sig;
+      this.el.card.innerHTML = card.map((b) => `<button data-action="${b.action}" ${b.enabled ? '' : 'disabled'} class="${b.active ? 'active' : ''}" title="${b.label} (${b.key})">`
+        + `<span class="key">${b.key}</span>${b.label}${b.cost != null ? `<span class="cost">${b.cost}</span>` : ''}</button>`).join('');
+    }
   }
 
   selectionHtml(world, sel) {

@@ -6,6 +6,7 @@ import { createRng } from './rng.js';
 import { SIM_DT, PLAYER } from './constants.js';
 import { Pathfinder } from './pathfinder.js';
 import { issueCommand, thinkUnit } from './orders.js';
+import { updateConstruction } from './construction.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).
@@ -39,7 +40,7 @@ export class World {
   }
 
   emit(type, data = {}) {
-    this.events.push({ type, t: this.time, ...data });
+    this.events.push({ ...data, type, t: this.time });
   }
 
   drainEvents() {
@@ -85,6 +86,11 @@ export class World {
     });
   }
 
+  removeEntity(e) {
+    this.entities.delete(e.id);
+    if (e.kind !== 'unit') this.grid.setOccupant(e.tx, e.ty, e.w, e.h, 0);
+  }
+
   get(id) {
     return this.entities.get(id);
   }
@@ -101,6 +107,7 @@ export class World {
     const units = [...this.ofKind('unit')];
     for (const u of units) { u.px = u.x; u.py = u.y; }
     for (const u of units) thinkUnit(this, u, SIM_DT);
+    updateConstruction(this, SIM_DT);
     this.time += SIM_DT;
     this.tick++;
   }

@@ -11,7 +11,41 @@ export function setDestination(world, u, x, y) {
   u.path = path || [];
   u.pathIdx = 0;
   u.stuck = { t: 0, x: u.x, y: u.y, repaths: 0 };
+  u.pathVersion = world.grid.version;
   return u.path.length > 0;
+}
+
+// Walk toward the free tile next to entity e that is closest to the unit.
+export function approach(world, u, e, dt) {
+  if (!u.path || u.approachTarget !== e.id) {
+    const t = adjacentTile(world, e, u.x, u.y);
+    if (!t) return 'failed';
+    setDestination(world, u, t.x, t.y);
+    u.approachTarget = e.id;
+  }
+  const r = followPath(world, u, dt);
+  if (r !== 'moving') u.approachTarget = null; // arrived or failed: re-plan next tick if still out of range
+  return r;
+}
+
+// Center of the walkable tile bordering e's footprint that is nearest to (x,y).
+// Edge-adjacent tiles come first: diagonal corner tiles are too far from the edge
+// for melee/build range, so they are only used when every edge tile is blocked.
+export function adjacentTile(world, e, x, y) {
+  const g = world.grid;
+  let best = null, bestD = Infinity;
+  for (const corners of [false, true]) {
+    for (let ty = e.ty - 1; ty <= e.ty + e.h; ty++) {
+      for (let tx = e.tx - 1; tx <= e.tx + e.w; tx++) {
+        const sideX = tx === e.tx - 1 || tx === e.tx + e.w, sideY = ty === e.ty - 1 || ty === e.ty + e.h;
+        if (!(sideX || sideY) || (sideX && sideY) !== corners || !g.isWalkable(tx, ty)) continue;
+        const c = g.center(tx, ty), d = Math.hypot(c.x - x, c.y - y);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
 }
 
 export function clearPath(u) {
@@ -43,6 +77,12 @@ export function tryMove(world, u, dx, dy) {
 // Advance along the path. Returns 'moving', 'arrived' or 'failed'.
 export function followPath(world, u, dt) {
   if (!u.path) return 'arrived';
+  // The map changed (building placed or removed): re-route once.
+  if (u.pathVersion !== world.grid.version && u.dest) {
+    const stuck = u.stuck;
+    setDestination(world, u, u.dest.x, u.dest.y);
+    u.stuck = stuck;
+  }
   let budget = u.speed * dt;
   while (budget > 0 && u.pathIdx < u.path.length) {
     const wp = u.path[u.pathIdx];
