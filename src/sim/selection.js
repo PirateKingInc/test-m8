@@ -50,25 +50,30 @@ export class ControlGroups {
   }
 }
 
-// Distinct destination points for a group move: a spiral of walkable tiles
-// around the target, matched to units greedily by distance (shortest pairs first).
+// Distinct destination points for a group move. The group keeps its shape:
+// each unit aims at goal + (its offset from the group centroid), with the
+// offsets compressed if the group is spread out, then snaps to the nearest
+// free walkable tile. Translating the formation means paths rarely cross, so
+// early arrivals aren't shoved around by units heading to slots behind them.
 export function formationSlots(world, units, x, y) {
-  const g = world.grid, goal = g.tileOf(x, y);
-  const slots = [];
-  for (const t of g.spiral(goal.tx, goal.ty, 12)) {
-    slots.push(g.center(t.tx, t.ty));
-    if (slots.length >= units.length) break;
+  const g = world.grid, T = g.tile;
+  const cx = units.reduce((s, u) => s + u.x, 0) / units.length;
+  const cy = units.reduce((s, u) => s + u.y, 0) / units.length;
+  const spread = Math.max(...units.map((u) => Math.hypot(u.x - cx, u.y - cy)), 1);
+  const maxSpread = T * Math.ceil(Math.sqrt(units.length)) * 0.75;
+  const k = Math.min(1, maxSpread / spread);
+  const wanted = units.map((u) => ({ u, x: x + (u.x - cx) * k, y: y + (u.y - cy) * k }));
+  wanted.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+  const used = new Set(), out = new Map();
+  for (const w of wanted) {
+    const t = g.tileOf(w.x, w.y);
+    const start = g.inBounds(t.tx, t.ty) ? t : g.tileOf(x, y);
+    let slot = null;
+    for (const c of g.spiral(start.tx, start.ty, 16)) {
+      const key = c.ty * g.cols + c.tx;
+      if (!used.has(key)) { used.add(key); slot = g.center(c.tx, c.ty); break; }
+    }
+    out.set(w.u.id, slot || { x, y });
   }
-  const pairs = [];
-  units.forEach((u, ui) => slots.forEach((s, si) => pairs.push([Math.hypot(u.x - s.x, u.y - s.y), ui, si])));
-  pairs.sort((a, b) => a[0] - b[0]);
-  const out = new Map(), usedSlot = new Set();
-  for (const [, ui, si] of pairs) {
-    const u = units[ui];
-    if (out.has(u.id) || usedSlot.has(si)) continue;
-    out.set(u.id, slots[si]);
-    usedSlot.add(si);
-  }
-  for (const u of units) if (!out.has(u.id)) out.set(u.id, { x, y }); // more units than free tiles
   return out;
 }

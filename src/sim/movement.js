@@ -1,8 +1,10 @@
 // Path following, stuck recovery and wall sliding. Pure sim code.
-const ARRIVE = 2; // px
+const ARRIVE = 2; // px, final waypoint
+const PASS = 12; // px, intermediate waypoints count as reached within this radius
 const STUCK_WINDOW = 1.0; // s
 const STUCK_MIN_PROGRESS = 4; // px per window
 const MAX_REPATHS = 3;
+const MAX_CROWD_WAIT = 15; // s a unit will queue behind moving traffic before giving up
 
 // Give the unit a new destination. Returns false if no route exists.
 export function setDestination(world, u, x, y) {
@@ -10,7 +12,7 @@ export function setDestination(world, u, x, y) {
   u.dest = { x, y };
   u.path = path || [];
   u.pathIdx = 0;
-  u.stuck = { t: 0, x: u.x, y: u.y, repaths: 0 };
+  u.stuck = { t: 0, best: Infinity, repaths: 0, waited: 0 };
   u.pathVersion = world.grid.version;
   return u.path.length > 0;
 }
@@ -68,7 +70,8 @@ export function tryMove(world, u, dx, dy) {
   const g = world.grid;
   const nx = Math.min(Math.max(u.x + dx, u.radius), world.width - u.radius);
   const ny = Math.min(Math.max(u.y + dy, u.radius), world.height - u.radius);
-  if (canStand(g, nx, ny, u.radius)) { u.x = nx; u.y = ny; return true; }
+  // Already overlapping a blocked tile (e.g. spawned or shoved there): move freely to escape.
+  if (canStand(g, nx, ny, u.radius) || !canStand(g, u.x, u.y, u.radius)) { u.x = nx; u.y = ny; return true; }
   if (canStand(g, nx, u.y, u.radius)) { u.x = nx; return true; }
   if (canStand(g, u.x, ny, u.radius)) { u.y = ny; return true; }
   return false;
@@ -81,12 +84,21 @@ export function followPath(world, u, dt) {
   if (u.pathVersion !== world.grid.version && u.dest) {
     const stuck = u.stuck;
     setDestination(world, u, u.dest.x, u.dest.y);
-    u.stuck = stuck;
+    u.stuck = { ...stuck, best: Infinity };
+  }
+  // Every 0.5 s: if shoving pushed us behind an obstacle relative to the next
+  // waypoint, re-plan from here instead of grinding against the corner.
+  if ((world.tick + u.id) % 10 === 0 && u.pathIdx < u.path.length && !lineWalkable(world.grid, u.x, u.y, u.path[u.pathIdx])) {
+    const stuck = u.stuck;
+    setDestination(world, u, u.dest.x, u.dest.y);
+    u.stuck = { ...stuck, best: Infinity };
   }
   let budget = u.speed * dt;
   while (budget > 0 && u.pathIdx < u.path.length) {
     const wp = u.path[u.pathIdx];
     const dx = wp.x - u.x, dy = wp.y - u.y, d = Math.hypot(dx, dy);
+    const last = u.pathIdx === u.path.length - 1;
+    if (!last && d <= PASS) { u.pathIdx++; continue; }
     if (d <= Math.max(ARRIVE, budget)) {
       if (!tryMove(world, u, dx, dy)) break;
       budget -= d;
@@ -101,18 +113,50 @@ export function followPath(world, u, dt) {
   return checkStuck(world, u, dt);
 }
 
+function remaining(u) {
+  let len = 0, x = u.x, y = u.y;
+  for (let i = u.pathIdx; i < u.path.length; i++) {
+    len += Math.hypot(u.path[i].x - x, u.path[i].y - y);
+    x = u.path[i].x; y = u.path[i].y;
+  }
+  return len;
+}
+
+function lineWalkable(grid, x, y, wp) {
+  const len = Math.hypot(wp.x - x, wp.y - y);
+  for (let d = 0; d <= len; d += 8) {
+    const t = grid.tileOf(x + ((wp.x - x) * d) / len, y + ((wp.y - y) * d) / len);
+    if (!grid.isWalkable(t.tx, t.ty)) return false;
+  }
+  return true;
+}
+
+function inTraffic(world, u) {
+  for (const v of world.ofKind('unit')) {
+    if (v !== u && v.path && Math.hypot(v.x - u.x, v.y - u.y) < u.radius + v.radius + 6) return true;
+  }
+  return false;
+}
+
 function checkStuck(world, u, dt) {
   const s = u.stuck;
   s.t += dt;
   if (s.t < STUCK_WINDOW) return 'moving';
-  const progress = Math.hypot(u.x - s.x, u.y - s.y);
-  s.t = 0; s.x = u.x; s.y = u.y;
-  if (progress >= STUCK_MIN_PROGRESS) { s.repaths = 0; return 'moving'; }
-  if (s.repaths >= MAX_REPATHS) { clearPath(u); return 'failed'; }
-  const repaths = s.repaths + 1;
-  const dest = u.dest;
-  setDestination(world, u, dest.x, dest.y);
-  u.stuck.repaths = repaths;
+  // Progress = shrinkage of the remaining path length, so a unit being
+  // jostled back and forth (orbiting a waypoint) doesn't count as moving.
+  const left = remaining(u);
+  const progress = s.best - left;
+  s.t = 0;
+  s.best = Math.min(s.best, left);
+  if (progress >= STUCK_MIN_PROGRESS) { s.repaths = 0; s.waited = 0; return 'moving'; }
+  // Jammed in moving traffic (e.g. a chokepoint): re-plan, but don't count it
+  // as a failure; queueing is bounded so nobody waits forever.
+  const crowd = inTraffic(world, u) && s.waited < MAX_CROWD_WAIT;
+  if (!crowd && s.repaths >= MAX_REPATHS) { clearPath(u); return 'failed'; }
+  const { repaths, waited } = s;
+  setDestination(world, u, u.dest.x, u.dest.y);
+  u.stuck.repaths = crowd ? repaths : repaths + 1;
+  u.stuck.waited = crowd ? waited + STUCK_WINDOW : waited;
   if (u.path.length === 0) { clearPath(u); return 'failed'; }
   return 'moving';
 }

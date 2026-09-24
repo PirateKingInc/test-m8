@@ -1,7 +1,7 @@
 // Combat (SPEC.md "Units" / "Damage multipliers"): targeting, chasing, damage and death.
 import { UNITS, DAMAGE_MULTIPLIERS, COMBAT } from '../data/units.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { registerCommand, registerOrder, ownUnits } from './orders.js';
+import { registerCommand, registerOrder, ownUnits, setAnchor } from './orders.js';
 import { setDestination, followPath, clearPath, approach } from './movement.js';
 import { gap } from './geometry.js';
 
@@ -108,7 +108,7 @@ registerOrder('attackMove', (world, u, dt) => {
     return;
   }
   if (!u.path) setDestination(world, u, o.x, o.y);
-  if (followPath(world, u, dt) !== 'moving') u.order = { type: 'idle' };
+  if (followPath(world, u, dt) !== 'moving') { u.order = { type: 'idle' }; setAnchor(u); }
 });
 
 // Called every tick after orders: cooldowns, idle auto-acquire, turrets, deaths.

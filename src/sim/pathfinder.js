@@ -41,6 +41,38 @@ export class Pathfinder {
     return best;
   }
 
+  // True if a band CLEARANCE px either side of the segment between two tile
+  // centers is walkable. Wider than a plain line-of-sight check, so smoothed
+  // paths keep units off rock corners instead of funnelling them along walls.
+  clear(a, b) {
+    const g = this.grid, T = g.tile, CLEARANCE = 12;
+    const ax = (a[0] + 0.5) * T, ay = (a[1] + 0.5) * T, bx = (b[0] + 0.5) * T, by = (b[1] + 0.5) * T;
+    const len = Math.hypot(bx - ax, by - ay);
+    const nx = -(by - ay) / len, ny = (bx - ax) / len;
+    for (let d = 0; d <= len; d += 8) {
+      const px = ax + ((bx - ax) * d) / len, py = ay + ((by - ay) * d) / len;
+      for (const o of [-CLEARANCE, 0, CLEARANCE]) {
+        const t = g.tileOf(px + nx * o, py + ny * o);
+        if (!g.isWalkable(t.tx, t.ty)) return false;
+      }
+    }
+    return true;
+  }
+
+  // Greedy string-pulling over the A* tile path using the clearance check.
+  smooth(raw) {
+    if (raw.length <= 2) return raw;
+    const out = [raw[0]];
+    let i = 0;
+    while (i < raw.length - 1) {
+      let j = raw.length - 1;
+      while (j > i + 1 && !this.clear(raw[i], raw[j])) j--;
+      out.push(raw[j]);
+      i = j;
+    }
+    return out;
+  }
+
   // Waypoints in px from (x,y) toward (tx,ty). Blocked or unreachable goals resolve
   // to the nearest reachable tile. Returns null if the unit itself is boxed in.
   find(x, y, tx, ty) {
@@ -62,8 +94,7 @@ export class Pathfinder {
       raw = this.finder.findPath(s.tx, s.ty, goal.tx, goal.ty, this.pfGrid());
       if (raw.length === 0) return [];
     }
-    const smooth = raw.length > 2 ? this.PF.Util.smoothenPath(this.pfGrid(), raw) : raw;
-    const pts = smooth.slice(1).map(([cx, cy]) => g.center(cx, cy));
+    const pts = this.smooth(raw).slice(1).map(([cx, cy]) => g.center(cx, cy));
     if (exact) {
       if (pts.length) pts[pts.length - 1] = { x: tx, y: ty };
       else pts.push({ x: tx, y: ty });
