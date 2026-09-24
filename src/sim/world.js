@@ -4,6 +4,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { Grid } from './grid.js';
 import { createRng } from './rng.js';
 import { SIM_DT, PLAYER } from './constants.js';
+import { Pathfinder } from './pathfinder.js';
+import { issueCommand, thinkUnit } from './orders.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).
@@ -22,6 +24,7 @@ export class World {
     this.resources = { [PLAYER]: map.startingLumen };
     this.events = []; // drained by the renderer/audio each frame
 
+    this.pathfinder = new Pathfinder(this.grid, PF);
     for (const [x, y, w, h] of map.rocks) this.grid.setRock(x, y, w, h);
     for (const [tx, ty] of map.nodes) this.addNode(tx, ty, map.nodeAmount);
     if (setup === 'start') this.setupStart(map.start);
@@ -90,8 +93,14 @@ export class World {
     for (const e of this.entities.values()) if (e.kind === kind) yield e;
   }
 
+  issue(cmd) {
+    return issueCommand(this, cmd);
+  }
+
   step() {
-    for (const u of this.ofKind('unit')) { u.px = u.x; u.py = u.y; }
+    const units = [...this.ofKind('unit')];
+    for (const u of units) { u.px = u.x; u.py = u.y; }
+    for (const u of units) thinkUnit(this, u, SIM_DT);
     this.time += SIM_DT;
     this.tick++;
   }

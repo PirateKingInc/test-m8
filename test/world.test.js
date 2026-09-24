@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import './helpers.js';
 import { World } from '../src/sim/world.js';
 import { MAP } from '../src/data/map.js';
 import { createRng } from '../src/sim/rng.js';
