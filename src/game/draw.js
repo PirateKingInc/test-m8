@@ -126,3 +126,14 @@ export function drawMarker(g, m, now) {
   g.lineBetween(m.x, m.y - 5, m.x, m.y + 5);
   return true;
 }
+
+export function drawGhost(g, gh, T) {
+  const color = gh.valid ? 0x7dffb0 : 0xff5a5a;
+  g.fillStyle(color, 0.22);
+  g.fillRect(gh.tx * T, gh.ty * T, gh.w * T, gh.h * T);
+  g.lineStyle(2, color, 0.9);
+  g.strokeRect(gh.tx * T, gh.ty * T, gh.w * T, gh.h * T);
+  g.lineStyle(1, color, 0.35);
+  for (let i = 1; i < gh.w; i++) g.lineBetween((gh.tx + i) * T, gh.ty * T, (gh.tx + i) * T, (gh.ty + gh.h) * T);
+  for (let i = 1; i < gh.h; i++) g.lineBetween(gh.tx * T, (gh.ty + i) * T, (gh.tx + gh.w) * T, (gh.ty + i) * T);
+}
