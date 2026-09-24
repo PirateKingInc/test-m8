@@ -4,7 +4,9 @@ export class Pathfinder {
     if (!PF) throw new Error('PathFinding.js (PF) is required');
     this.grid = grid;
     this.PF = PF;
-    this.finder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
+    // Legacy option names: the CDN browser build of 0.4.18 predates DiagonalMovement.
+    // allowDiagonal + dontCrossCorners == diagonals only when no obstacle is touched.
+    this.finder = new PF.AStarFinder({ allowDiagonal: true, dontCrossCorners: true });
     this.base = null;
     this.baseVersion = -1;
     this.searches = 0;
@@ -12,7 +14,7 @@ export class Pathfinder {
 
   pfGrid() {
     if (this.baseVersion !== this.grid.version) {
-      this.base = new this.PF.Grid(this.grid.toMatrix());
+      this.base = new this.PF.Grid(this.grid.cols, this.grid.rows, this.grid.toMatrix());
       this.baseVersion = this.grid.version;
     }
     return this.base.clone();

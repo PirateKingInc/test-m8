@@ -1,7 +1,10 @@
-// Shared test setup: the same PathFinding.js the browser loads from the CDN.
-import PF from 'pathfinding';
+// Shared test setup. Loads the exact PathFinding.js file the browser gets from the CDN
+// (pathfinding@0.4.18/visual/lib/pathfinding-browser.min.js, a UMD bundle), so headless
+// tests exercise the same library build that ships.
+import { createRequire } from 'node:module';
 import { World } from '../src/sim/world.js';
 
+const PF = createRequire(import.meta.url)('pathfinding/visual/lib/pathfinding-browser.min.js');
 globalThis.PF = PF;
 
 export { PF };

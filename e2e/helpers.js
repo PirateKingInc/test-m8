@@ -14,7 +14,9 @@ export async function openGame(page, query = '') {
   for (const [url, file] of Object.entries(CDN)) {
     await page.route(url, (route) => route.fulfill({ body: readFileSync(file), contentType: 'text/javascript' }));
   }
+  const crashed = new Promise((_, reject) => page.once('pageerror', reject));
   await page.goto(`/${query}`);
-  await page.waitForFunction(() => window.__game?.scene?.gfx && window.__game.world.tick > 5);
+  // Fail fast with the real error instead of timing out if the page throws while booting.
+  await Promise.race([page.waitForFunction(() => window.__game?.scene?.gfx && window.__game.world.tick > 5), crashed]);
   return errors;
 }
