@@ -1,0 +1,21 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+
+test('PROJECT.md records all phases and the project-wide out-of-scope list', () => {
+  const doc = read('PROJECT.md');
+  for (const phase of ['Phase', '1 — Sandbox', '2 — Scripted AI opponent', '3 — Balance & polish']) {
+    assert.ok(doc.includes(phase), `missing "${phase}"`);
+  }
+  for (const banned of ['Fog of war', 'More than one faction', 'at most 2 tech tiers', 'Multiplayer', 'More than one map', 'Adaptive or learning AI']) {
+    assert.ok(doc.includes(banned), `out-of-scope list missing "${banned}"`);
+  }
+});
+
+test('BACKLOG.md entries are tagged with a future phase', () => {
+  const items = read('BACKLOG.md').split('\n').filter((l) => l.startsWith('- '));
+  assert.ok(items.length > 0);
+  for (const item of items) assert.match(item, /^- \[P[23]\]/, item);
+});
