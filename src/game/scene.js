@@ -71,8 +71,12 @@ export class GameScene extends Phaser.Scene {
     cam.scrollY += dy * PAN_SPEED * dt;
   }
 
-  update(_time, deltaMs) {
-    const dt = Math.min(deltaMs, 250) / 1000;
+  update() {
+    // Wall-clock delta: Phaser's delta is smoothed/capped, which starves the
+    // fixed-timestep accumulator (and slows the sim) whenever frames are slow.
+    const now = performance.now();
+    const dt = Math.min(now - (this.lastNow ?? now), 250) / 1000;
+    this.lastNow = now;
     this.panCamera(dt);
     this.acc += dt;
     let steps = 0;

@@ -7,6 +7,7 @@ import { SIM_DT, PLAYER } from './constants.js';
 import { Pathfinder } from './pathfinder.js';
 import { issueCommand, thinkUnit } from './orders.js';
 import { updateConstruction } from './construction.js';
+import './economy.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).

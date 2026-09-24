@@ -134,6 +134,18 @@ export class InputController {
       this.mark(target.x, target.y, 'build');
       return;
     }
+    if (target?.kind === 'node' && drones.length) {
+      this.world.issue({ type: 'gather', ids: drones.map((u) => u.id), node: target.id });
+      this.mark(target.x, target.y, 'gather');
+      const rest = units.filter((u) => u.type !== 'drone');
+      if (rest.length) this.world.issue({ type: 'move', ids: rest.map((u) => u.id), x, y });
+      return;
+    }
+    if (target?.kind === 'building' && target.team === PLAYER && target.built && BUILDINGS[target.type].dropOff && drones.some((u) => u.carry > 0)) {
+      this.world.issue({ type: 'returnCargo', ids: drones.map((u) => u.id) });
+      this.mark(target.x, target.y, 'gather');
+      return;
+    }
     const res = this.world.issue({ type: 'move', ids: units.map((u) => u.id), x, y });
     if (res.ok) this.mark(x, y, 'move');
   }
