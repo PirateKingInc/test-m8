@@ -16,3 +16,7 @@ jobs:
       - run: npm ci
       - name: Unit, economy, counter, pathfinding and bot tests
         run: npm test
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Browser e2e tests
+        run: npm run test:e2e

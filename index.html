@@ -1,7 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Prism Outpost</title></head>
-<body style="background:#0b0f17;color:#cfe8ff;font-family:system-ui,sans-serif">
-<h1>Prism Outpost</h1><p>RTS sandbox under construction.</p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prism Outpost</title>
+  <link rel="stylesheet" href="src/game/hud.css">
+</head>
+<body>
+  <div id="game"></div>
+  <div id="hud-top" class="hud">
+    <span class="brand">PRISM OUTPOST</span>
+    <span>Lumen <b id="lumen">0</b></span>
+    <span>Units <b id="unit-count">0</b></span>
+    <span class="dim">Phase 1 sandbox, no opponent</span>
+    <span id="fps" class="dim"></span>
+  </div>
+  <div id="hud-bottom" class="hud">
+    <div id="selection-panel"></div>
+    <div id="command-card"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pathfinding@0.4.18/visual/lib/pathfinding-browser.min.js"></script>
+  <script type="module" src="src/game/main.js"></script>
 </body>
 </html>
