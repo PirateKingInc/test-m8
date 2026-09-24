@@ -54,6 +54,21 @@ export class Hud {
     this.lastRefresh = 0;
   }
 
+  // Victory / Defeat / Draw screen (SPEC.md Phase 2 "Win / lose").
+  showResult(r, doc = document) {
+    this.shownResult = true;
+    const title = r.winner === null ? 'Draw' : r.winner === PLAYER ? 'Victory' : 'Defeat';
+    const why = { 'core-destroyed': r.winner === PLAYER ? 'The enemy Command Core is destroyed.' : 'Your Command Core was destroyed.',
+      draw: 'Both Command Cores fell at the same moment.', 'time-limit': `Time limit reached: decided on score (${r.scores[1]} vs ${r.scores[2]}).` }[r.reason];
+    const mm = Math.floor(r.time / 60), ss = String(Math.floor(r.time % 60)).padStart(2, '0');
+    doc.getElementById('result-title').textContent = title;
+    doc.getElementById('result-title').className = title.toLowerCase();
+    doc.getElementById('result-detail').textContent = `${why} Match time ${mm}:${ss}.`;
+    doc.getElementById('result').hidden = false;
+    doc.getElementById('play-again').onclick = () => location.reload();
+    doc.getElementById('change-difficulty').onclick = () => { location.search = ''; };
+  }
+
   setMuted(muted) {
     this.el.sound.textContent = muted ? 'Sound off (M)' : 'Sound on (M)';
   }
@@ -79,6 +94,7 @@ export class Hud {
     this.el.supply.textContent = `${sup.used}/${sup.cap}`;
     this.el.supply.classList.toggle('blocked', sup.free <= 0);
     this.el.fps.textContent = `${Math.round(fps)} fps`;
+    if (world.result && !this.shownResult) this.showResult(world.result);
     if (!ui) return;
     this.ui = ui;
     this.updateGroups(world, ui);

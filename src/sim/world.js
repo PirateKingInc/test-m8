@@ -11,6 +11,7 @@ import './economy.js';
 import { updateProduction } from './production.js';
 import { updateCombat } from './combat.js';
 import { separate } from './steering.js';
+import { checkResult } from './victory.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).
@@ -27,12 +28,18 @@ export class World {
     this.nextId = 1;
     this.entities = new Map();
     this.resources = { [PLAYER]: map.startingLumen };
+    this.mode = setup === 'match' ? 'match' : 'sandbox';
+    this.result = null; // set once a match is decided (SPEC.md Phase 2 "Win / lose")
     this.events = []; // drained by the renderer/audio each frame
 
     this.pathfinder = new Pathfinder(this.grid, PF);
     for (const [x, y, w, h] of map.rocks) this.grid.setRock(x, y, w, h);
     for (const [tx, ty] of map.nodes) this.addNode(tx, ty, map.nodeAmount);
-    if (setup === 'start') this.setupStart(map.start);
+    if (setup === 'start' || setup === 'match') this.setupStart(map.start);
+    if (setup === 'match') {
+      this.setupStart(map.aiStart);
+      this.resources[map.aiStart.team] = map.startingLumen;
+    }
   }
 
   setupStart(start) {
@@ -104,10 +111,12 @@ export class World {
   }
 
   issue(cmd) {
+    if (this.result) return { ok: false, reason: 'Game over' };
     return issueCommand(this, cmd);
   }
 
   step() {
+    if (this.result) return; // the match is decided: the world is frozen
     const units = [...this.ofKind('unit')];
     for (const u of units) { u.px = u.x; u.py = u.y; }
     for (const u of units) thinkUnit(this, u, SIM_DT);
@@ -117,6 +126,7 @@ export class World {
     updateCombat(this, SIM_DT);
     this.time += SIM_DT;
     this.tick++;
+    checkResult(this);
   }
 
   run(seconds) {
