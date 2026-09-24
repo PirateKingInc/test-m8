@@ -16,6 +16,7 @@ multiplayer, extra maps or adaptive AI.
 - [P2] Under-attack notifications and audio cue.
 - [P2] Unit hold-position and patrol commands (helpful for turtle strategy AI & players).
 - [P2] Drones auto-flee or auto-retaliate when attacked while gathering.
+- [P2] Promote `test/bot.js` (the scripted sandbox bot) into the starting skeleton for the scripted AI; it already plays the full loop through `world.issue()`.
 
 ## Phase 3: Balance & polish
 
@@ -30,3 +31,6 @@ multiplayer, extra maps or adaptive AI.
 - [P3] Shift-queued waypoints/commands.
 - [P3] Building rotation/footprint variety.
 - [P3] Save/restore sandbox state (JSON snapshot of `World`).
+- [P3] Key rebinding: desktop Chrome swallows Ctrl+1–8, so Phase 1 also accepts Shift+1–9 for assigning control groups.
+- [P3] Smarter formation slot assignment when a move target straddles an obstacle. Units may get jostled in one-tile lanes; they settle, but not always exactly on their slot.
+- [P3] Rendering: batch unit drawing into textures, or use sprite atlases generated at boot. The JS render cost is already only ~0.4 ms per frame with 40 units.

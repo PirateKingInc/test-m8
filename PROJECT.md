@@ -88,7 +88,8 @@ Bulwark. Every unit has at least one counter.
 - `src/game/*.js`: the Phaser scene (rendering and input), the DOM HUD and
   Web Audio. It only reads sim state and sends commands.
 - `test/*.test.js`: `node --test`. Unit, economy, counter, pathfinding and
-  stress tests, plus a scripted bot that plays the whole loop.
+  stress tests, plus a scripted bot (`test/bot.js`) that plays the whole loop
+  through the command API. Phase 2's AI will drive the same `world.issue()` API.
   `test/e2e/*.spec.js` has Playwright browser smoke tests.
 - CI is GitHub Actions: tests run on every push and PR. Merging to `main`
   deploys to GitHub Pages.

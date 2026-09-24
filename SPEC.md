@@ -112,20 +112,42 @@ intended winner must win **at least 80%** of them.
 
 ## Movement & pathfinding
 
-- **Library:** PathFinding.js 0.4.18 (`PF.AStarFinder`,
-  `DiagonalMovement.OnlyWhenNoObstacles`) runs on the 80×60 tile grid. The
-  path is smoothed with `PF.Util.smoothenPath`.
-- **Group moves:** each unit gets its own destination tile. The tiles come
-  from a spiral of free tiles around the clicked tile, and they are assigned
-  greedily by distance, so units never share a final tile.
-- **Separation:** overlapping units push each other apart, and a moving unit
-  nudges idle units out of the way. Positions are never allowed onto blocked
-  tiles; units slide along walls instead.
-- **Stuck recovery:** a moving unit that advances less than 4 px in 1.0 s
-  asks for a new path. After 3 failed repaths it stops at its current
-  position, so it never stays stuck forever.
-- **Performance budget:** 40 units moving at once must average **< 5 ms
-  per sim step** in CI (checked by `test/stress.test.js`).
+- **Library:** PathFinding.js 0.4.18 (`PF.AStarFinder`) routes on the 80×60 tile
+  grid. Diagonals are allowed only when no corner is cut (`allowDiagonal` +
+  `dontCrossCorners`; the CDN browser bundle uses these legacy option names).
+  Headless tests load that exact CDN bundle.
+- **Smoothing:** the A* tile path is string-pulled greedily. A shortcut is kept
+  only if a band **±12 px** either side of the segment is walkable, so units
+  don't hug rock corners. Intermediate waypoints count as reached within
+  **12 px**; the final one within 2 px.
+- **Blocked or unreachable goals** resolve to the nearest walkable tile, or to
+  the nearest tile *reachable* from the unit (found by BFS flood fill).
+- **Group moves keep the group's shape.** Each unit aims at `goal + (its
+  offset from the group centroid)`. The offsets are compressed to about
+  `0.75·√n` tiles if the group is spread out. Each target then snaps to the
+  nearest free walkable tile, so every unit gets a distinct destination and
+  paths rarely cross.
+- **Separation (spatial hash, 2 passes per tick):**
+  - Overlapping units push apart.
+  - A moving unit shoves an idle one **sideways**, off its heading, rather than
+    bulldozing it.
+  - Movers meeting roughly head-on each sidestep to their **right**.
+  - Moving-vs-moving collisions are **soft** (25% of the overlap is resolved per
+    tick), so crowds flow through chokepoints. Idle units separate fully.
+  - Drones on the gather loop pass through each other.
+  - A settled unit drifts back to where it stopped if it gets jostled up to 96 px.
+  - Positions never enter blocked tiles; units slide along walls.
+- **Stuck recovery:**
+  - Progress is measured as the shrinkage of the remaining path length, so a
+    unit jostled back and forth doesn't count as moving.
+  - Less than 4 px of progress in 1.0 s triggers a re-plan. Every 0.5 s a unit
+    also re-plans if it has been pushed behind an obstacle relative to its next
+    waypoint.
+  - Re-plans while pressed against moving traffic don't count as failures, for
+    up to 15 s of waiting. After 3 counted failures the unit stops, so it is
+    never stuck forever.
+- **Performance budget:** 40 units moving at once must average **< 5 ms per sim
+  step** in CI (`test/stress.test.js`). They currently average about 0.2 ms.
 
 ## Controls
 
@@ -140,7 +162,7 @@ intended winner must win **at least 80%** of them.
 | Right-click ground | Move in formation. With a Core or Foundry selected, this sets the rally point. |
 | **A** then left-click | Attack-move (engage enemies met on the way) |
 | **S** | Stop |
-| **Ctrl + 1–9** | Assign a control group |
+| **Ctrl + 1–9** (or **Shift + 1–9**) | Assign a control group. Desktop Chrome reserves Ctrl+1–8 for switching tabs, so Shift is the reliable choice there. |
 | **1–9** | Select a control group (press twice to center the camera on it) |
 | **Q W E R** (Drone selected) | Place a Command Core, Depot, Foundry or Sentry Spire. Left-click places it, and Esc or right-click cancels. |
 | **Q** (Core selected) | Train a Drone |
