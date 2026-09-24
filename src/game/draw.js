@@ -92,17 +92,60 @@ export function drawBuilding(g, b, color) {
   }
 }
 
+// Each unit type has its own silhouette, rotated to face its heading.
 export function drawUnit(g, u, x, y, color) {
-  const r = u.radius;
+  const r = u.radius, a = u.facing || 0;
+  const cos = Math.cos(a), sin = Math.sin(a);
+  const P = (fx, fy) => ({ x: x + fx * cos - fy * sin, y: y + fx * sin + fy * cos }); // local -> world
+  const poly = (pts, fill, alpha = 1) => { g.fillStyle(fill, alpha); g.fillPoints(pts.map(([px, py]) => P(px, py)), true); };
   g.fillStyle(0x000000, 0.3);
   g.fillEllipse(x, y + r * 0.6, r * 2, r);
-  g.fillStyle(color, 1);
-  g.fillCircle(x, y, r);
-  g.fillStyle(0x0b0f17, 1);
-  g.fillCircle(x, y, r * 0.45);
-  if (u.carry > 0) {
-    g.fillStyle(CRYSTAL, 1);
-    g.fillCircle(x, y, r * 0.35);
+  const dark = 0x0b0f17;
+  switch (u.type) {
+    case 'drone': // small round hull with two rotor pods
+      g.fillStyle(color, 1);
+      g.fillCircle(P(0, -r * 0.7).x, P(0, -r * 0.7).y, r * 0.35);
+      g.fillCircle(P(0, r * 0.7).x, P(0, r * 0.7).y, r * 0.35);
+      g.fillCircle(x, y, r * 0.75);
+      g.fillStyle(dark, 1);
+      g.fillCircle(x, y, r * 0.35);
+      if (u.carry > 0) { g.fillStyle(CRYSTAL, 1); g.fillCircle(x, y, r * 0.3); }
+      break;
+    case 'striker': // arrowhead with twin blades
+      poly([[r * 1.2, 0], [-r * 0.8, -r * 0.9], [-r * 0.4, 0], [-r * 0.8, r * 0.9]], color);
+      poly([[r * 0.5, -r * 0.2], [r * 1.5, -r * 0.55], [r * 0.6, -r * 0.45]], 0xffffff, 0.9);
+      poly([[r * 0.5, r * 0.2], [r * 1.5, r * 0.55], [r * 0.6, r * 0.45]], 0xffffff, 0.9);
+      break;
+    case 'sparker': // diamond with a long emitter barrel
+      poly([[r, 0], [0, -r * 0.8], [-r, 0], [0, r * 0.8]], color);
+      poly([[r * 0.2, -r * 0.15], [r * 1.6, -r * 0.15], [r * 1.6, r * 0.15], [r * 0.2, r * 0.15]], 0xe6f7ff);
+      g.fillStyle(0xfff29a, 1);
+      g.fillCircle(x, y, r * 0.3);
+      break;
+    case 'bulwark': // heavy plated square with a shield front
+      poly([[r, -r], [r, r], [-r, r], [-r, -r]], color);
+      poly([[r * 0.7, -r * 0.7], [r * 0.7, r * 0.7], [-r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7]], dark);
+      poly([[r * 1.25, -r * 0.9], [r * 1.25, r * 0.9], [r * 0.85, r * 0.9], [r * 0.85, -r * 0.9]], 0xdfe7ef);
+      g.fillStyle(color, 1);
+      g.fillCircle(x, y, r * 0.35);
+      break;
+    case 'lancer': // round body carrying a long lance cannon
+      g.fillStyle(color, 1);
+      g.fillCircle(x, y, r * 0.85);
+      poly([[0, -r * 0.18], [r * 2.1, -r * 0.1], [r * 2.1, r * 0.1], [0, r * 0.18]], 0xffc24a);
+      poly([[r * 2.1, -r * 0.3], [r * 2.5, 0], [r * 2.1, r * 0.3]], 0xffc24a);
+      g.fillStyle(dark, 1);
+      g.fillCircle(x, y, r * 0.4);
+      break;
+    default: // verification-only test target: concentric rings
+      g.fillStyle(0xf2e6d8, 1);
+      g.fillCircle(x, y, r);
+      g.fillStyle(color, 1);
+      g.fillCircle(x, y, r * 0.7);
+      g.fillStyle(0xf2e6d8, 1);
+      g.fillCircle(x, y, r * 0.4);
+      g.fillStyle(color, 1);
+      g.fillCircle(x, y, r * 0.15);
   }
 }
 

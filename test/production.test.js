@@ -89,3 +89,16 @@ test('trained units spawn on distinct free tiles even when the exit is crowded, 
   runUntil(w, () => newest.order.type === 'idle', 30);
   assert.ok(Math.hypot(newest.x - rally.x, newest.y - rally.y) < 3);
 });
+
+test('every Foundry unit can be trained and then moved', () => {
+  const { w, foundry } = base();
+  w.resources[1] = 1000;
+  for (const unit of ['striker', 'sparker', 'bulwark', 'lancer']) w.issue({ type: 'train', building: foundry.id, unit });
+  runUntil(w, () => foundry.queue.length === 0, 120);
+  const units = [...w.ofKind('unit')];
+  assert.deepEqual(units.map((u) => u.type).sort(), ['bulwark', 'lancer', 'sparker', 'striker']);
+  const goal = tileCenter(24, 15);
+  w.issue({ type: 'move', ids: units.map((u) => u.id), ...goal });
+  runUntil(w, () => units.every((u) => u.order.type === 'idle'), 60);
+  for (const u of units) assert.ok(Math.hypot(u.x - goal.x, u.y - goal.y) < 80, `${u.type} arrived near the goal`);
+});
