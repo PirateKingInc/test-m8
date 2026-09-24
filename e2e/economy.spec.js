@@ -39,3 +39,17 @@ test('Command Core queue: Q trains Drones, clicking a slot cancels with a full r
   await expect(page.locator('#lumen')).toHaveText('250');
   expect(errors).toEqual([]);
 });
+
+test('HUD shows supply, and training is refused with a toast when supply runs out', async ({ page }) => {
+  const errors = await openGame(page);
+  await expect(page.locator('#supply')).toHaveText('4/10');
+  // Test setup shortcut: six more units put the player at the 10-supply cap.
+  await page.evaluate(() => { const w = window.__game.world; w.resources[1] = 5000; for (let i = 0; i < 6; i++) w.addUnit('striker', 1, 14 * 32, (34 + i) * 32); });
+  await expect(page.locator('#supply')).toHaveText('10/10');
+  const core = await toScreen(page, 10 * 32, 29 * 32);
+  await page.mouse.click(core.x, core.y);
+  await expect(page.locator('#command-card button')).toBeDisabled();
+  await page.evaluate(() => { const w = window.__game.world; const c = [...w.ofKind('building')][0]; w.issue({ type: 'train', building: c.id, unit: 'drone' }); });
+  await expect(page.locator('#toast')).toContainText('Not enough supply');
+  expect(errors).toEqual([]);
+});
