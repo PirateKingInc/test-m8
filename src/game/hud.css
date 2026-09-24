@@ -17,7 +17,7 @@ body { font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
 #hud-top b { color: var(--lumen); }
 .brand { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; }
 .dim { color: var(--dim); }
-#fps { margin-left: auto; }
+#sound { margin-left: auto; }
 #hud-bottom { bottom: 0; height: 104px; display: flex; gap: 12px; padding: 8px 12px;
   border-top-width: 1px; box-sizing: border-box; }
 #selection-panel { flex: 1; overflow: hidden; }
@@ -42,3 +42,7 @@ body { font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
 #dev-panel p { margin: 4px 0 6px; font-size: 11px; }
 #dev-panel button { margin: 2px; background: #2a1a14; color: #ffd2bf; border: 1px solid #7a3b22; border-radius: 3px; cursor: pointer; font-size: 11px; }
 kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-size: 11px; }
+#toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); color: #ffd2bf; font-weight: 600;
+  text-shadow: 0 1px 3px #000; opacity: 0; pointer-events: none; }
+#toast.show { animation: toast 1.6s ease-out; }
+@keyframes toast { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
