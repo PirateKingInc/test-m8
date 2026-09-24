@@ -18,5 +18,10 @@ export async function openGame(page, query = '') {
   await page.goto(`/${query}`);
   // Fail fast with the real error instead of timing out if the page throws while booting.
   await Promise.race([page.waitForFunction(() => window.__game?.scene?.gfx && window.__game.world.tick > 5), crashed]);
+  // Park the pointer mid-screen: Playwright's mouse starts at (0,0), inside the
+  // edge-pan zone, which would scroll the camera between reading a position and clicking it.
+  const vp = page.viewportSize();
+  await page.mouse.move(vp.width / 2, vp.height / 2);
+  await page.evaluate(() => { const c = window.__game.scene.cameras.main; window.__game.scene.centerOnCore(); return c.scrollY; });
   return errors;
 }
