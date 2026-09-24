@@ -25,8 +25,8 @@ counter design every phase relies on. Phase-specific numbers are in
 
 | Phase | Goal | Status |
 |---|---|---|
-| **1 — Sandbox** | A playable sandbox with base building, gathering, production queues, unit control, pathfinding with steering, and combat that follows the counter design. **No AI opponent** and no win/lose condition. Neutral *test targets* exist only for verification and are not a game feature. Shipped to GitHub Pages. | this phase |
-| **2 — Scripted AI opponent** | An opponent that plays with the same rules and roster. It picks one of three scripted strategies (**rush**, **economy boom**, **turtle-and-tech**) and reacts to what it scouts. For example, it builds Lancers after seeing Bulwarks, or adds Spires after seeing an early rush. This phase adds the win/lose condition (destroy all enemy buildings). | future |
+| **1 — Sandbox** | A playable sandbox with base building, gathering, production queues, unit control, pathfinding with steering, and combat that follows the counter design. **No AI opponent** and no win/lose condition. Neutral *test targets* exist only for verification and are not a game feature. Shipped to GitHub Pages. | done |
+| **2 — Scripted AI opponent** | An opponent that plays with the same rules and roster. It picks one of three scripted strategies (**rush**, **economy boom**, **turtle-and-tech**) and reacts to what it scouts. For example, it builds Lancers after seeing Bulwarks, or adds Spires after seeing an early rush. It adds a population (supply) cap for both sides and the win/lose condition: **destroying the enemy Command Core wins**, and losing your own loses. The player picks a difficulty, which selects the strategy and how tightly its script is timed. | this phase |
 | **3 — Balance & polish** | Headless simulated matches between the strategies to tune the unit and building data. Then polish: UX, feedback, performance and accessibility. | future |
 
 ## Explicitly OUT OF SCOPE for the whole project
@@ -85,11 +85,16 @@ Bulwark. Every unit has at least one counter.
   Node for tests and in the future for Phase 2 and 3 simulations. The world
   is changed only through commands (`world.issue(cmd)`), which is the same
   API the UI, the tests and a future AI use.
+- `src/ai/*.js`: the scripted AI opponent (Phase 2). It grew out of the Phase 1
+  sandbox bot, reads the world, and acts **only** through `world.issue()` with
+  its own team. It runs outside `World` in the match loop and has no Phaser or
+  DOM code. Strategy and difficulty numbers live in `src/data/strategies.js`
+  and `src/data/difficulty.js`.
 - `src/game/*.js`: the Phaser scene (rendering and input), the DOM HUD and
   Web Audio. It only reads sim state and sends commands.
 - `test/*.test.js`: `node --test`. Unit, economy, counter, pathfinding and
   stress tests, plus a scripted bot (`test/bot.js`) that plays the whole loop
-  through the command API. Phase 2's AI will drive the same `world.issue()` API.
+  through the command API. The Phase 2 AI extends that same engine.
   `test/e2e/*.spec.js` has Playwright browser smoke tests.
 - CI is GitHub Actions: tests run on every push and PR. Merging to `main`
   deploys to GitHub Pages.

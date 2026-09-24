@@ -1,6 +1,6 @@
-# Phase 1 Spec: Sandbox
+# Spec: Phase 1 (sandbox) + Phase 2 (scripted AI opponent)
 
-This file has the exact numbers for Phase 1. The code reads them from
+This file has the exact numbers for Phase 1 and, in the second half, Phase 2. The code reads them from
 `src/data/units.js`, `src/data/buildings.js` and `src/data/map.js`. If you
 change a number here, change it there too; `test/data.test.js` checks that
 the key values match.
@@ -97,18 +97,23 @@ intended winner must win **at least 80%** of them.
 ## Map (`src/data/map.js`)
 
 - **80 × 60 tiles** (2560 × 1920 px), which is larger than one screen.
-- **Player start:** Command Core at tile (8,27). Four Drones at tiles
-  (13,27)–(13,30). The camera starts centered on the Core.
+- Since Phase 2 the map is **mirror-symmetric about the vertical center line**
+  so both starts are equally fair: a feature of width `w` at tile `x` has a twin
+  at `80 − x − w`. The west half is unchanged from Phase 1.
+- **Player start (team 1, west):** Command Core at tile (8,27). Four Drones at
+  tiles (13,27)–(13,30). The camera starts centered on the Core.
+- **AI start (team 2, east, match mode only):** Command Core at (68,27). Four
+  Drones at (66,27)–(66,30).
 - **Rock (impassable):**
-  - Ridge A at x=30–31: y 0–17, 24–35 and 42–59. The gaps at y 18–23 and
-    36–41 are chokepoints.
-  - Ridge B at x=52–53: y 6–25 and 32–53. The gaps are y 0–5, 26–31 and 54–59.
-  - Outcrops at (14,10) 4×3, (12,46) 5×3, (40,26) 4×8, (62,14) 3×3 and (64,46) 4×3.
+  - Ridge A at x=30–31 and its mirror Ridge B at x=48–49, each covering
+    y 0–17, 24–35 and 42–59. The gaps at y 18–23 and 36–41 are chokepoints.
+  - Outcrops at (14,10) 4×3, (12,46) 5×3 and their mirrors (62,10) 4×3 and
+    (63,46) 5×3. The center plateau is at (38,26) 4×8.
 - **Crystal nodes (20 × 1500 Lumen):**
-  - Home field: (20,21), (22,24), (23,27), (23,30), (22,33) and (20,36)
-  - North-middle: (38,6), (41,5), (44,6) and (41,9)
-  - South-middle: (38,50), (41,52), (44,50) and (41,48)
-  - East: (66,24), (68,27), (69,30), (68,33), (66,36) and (64,30)
+  - West home field: (20,21), (22,24), (23,27), (23,30), (22,33) and (20,36)
+  - East home field (mirror): (58,21), (56,24), (55,27), (55,30), (56,33) and (58,36)
+  - North-middle: (37,6), (41,6), (39,3) and (39,9)
+  - South-middle: (37,51), (41,51), (39,48) and (39,54)
 
 ## Movement & pathfinding
 
@@ -187,3 +192,191 @@ intended winner must win **at least 80%** of them.
    box-select, control groups and attack-move.
 5. **Bot sandbox** (`test/bot.test.js`): a scripted bot builds every
    building, trains one of each unit and wins a fight against test targets.
+
+---
+
+# Phase 2: Scripted AI opponent
+
+Everything below is **match mode** (`World({ setup: 'match' })`). The Phase 1
+sandbox (`setup: 'start'`, player only) still exists, and all Phase 1 tests run
+in it.
+
+## Population (supply)
+
+This applies identically to every team; the rules are in the sim, not in the AI.
+
+| Item | Value |
+|---|---|
+| Supply per unit | Drone 1, Striker 1, Sparker 1, Lancer 2, Bulwark 3 |
+| Supply provided | Command Core **10**, Lumen Depot **8** (completed buildings only) |
+| Hard maximum | **60** per team, however many providers |
+| Starting use | 4 / 10 |
+
+- `used` = the supply of living units **plus queued production** (reserved when
+  queued, released on cancel).
+- `train` is rejected with "Not enough supply" when `used + unit supply > cap`.
+- Losing a provider never kills units. It only blocks new training until
+  supply is back under the cap.
+- The HUD shows `Supply used / cap`.
+
+## Win / lose
+
+- A team is **defeated** the moment it has no *completed* Command Core. The
+  other team **wins**.
+- If both teams lose their last Core in the same tick, the result is a **draw**.
+- **Sudden death:** at **30:00** of game time the match ends on score. Score =
+  banked Lumen + the cost of every living unit and completed building (plus the
+  cost already paid for unfinished ones). The higher score wins; equal scores draw.
+- Together these rules guarantee every match ends with a declared result.
+- When the result is set, `world.result = { winner, loser, reason, time }`
+  (`winner` is `null` for a draw), a `gameOver` event fires, and the sim freezes:
+  `step()` does nothing and `issue()` rejects every command. The browser shows
+  a Victory, Defeat or Draw screen.
+
+## Enemy scanning (combat target acquisition)
+
+- Every tick the sim rebuilds a **spatial index**: a uniform grid of 128 px
+  cells. Units go into the cell holding their center. Buildings go into every
+  cell their footprint overlaps.
+- `findEnemy(e, range)` only visits the cells within `range` plus the largest
+  footprint. Each scan therefore costs about the number of entities *near* the
+  unit, not the number in the whole world.
+- Results are identical to the old brute-force scan: the nearest enemy unit,
+  then buildings. A test checks this against brute force.
+- Budget: a **200-unit** battle (100 vs 100) must average **< 8 ms per sim step** in CI.
+
+## AI architecture
+
+- `src/ai/engine.js` is the **AI execution engine**. It grew directly out of the
+  Phase 1 scripted bot (`test/bot.js`, now `src/ai/engine.js`; the bot test still
+  runs through it).
+- The engine reads the world and acts **only through `world.issue(cmd)`**, with
+  its own team stamped on every command. Its whitelist of commands has no
+  `devSpawn`. A test runs full matches with the engine given a recursively
+  read-only view of the world, and fails on any direct mutation.
+- The engine runs outside the `World` (the match loop calls
+  `world.step()` then `ai.update()`), so it is headless-testable and never
+  touches Phaser or the DOM.
+- **Data files:**
+  - `src/data/strategies.js` has every strategy's opening, macro loop, army
+    composition, attack thresholds and scouting triggers.
+  - `src/data/difficulty.js` has each tier's timing parameters.
+  - Phase 3 tunes these without touching engine code.
+
+### Engine loop (every `decisionInterval` seconds)
+
+1. **Bookkeeping:** track pending construction.
+2. **Scout:** update what the AI knows and evaluate triggers (see below).
+3. **Gather:** put idle Drones on the nearest crystal to their own base.
+4. **Opening:** issue the next step of the strategy's `opening` list. A step
+   waits until it's affordable and has supply. After a step succeeds, the
+   engine waits the difficulty's `stepDelay` before the next.
+5. **Macro loop** (after the opening), in this order:
+   1. Build a Depot when `cap − used ≤ supplyBuffer` and none is under construction.
+   2. Train Drones up to `workerTarget × workerFactor`, at most 1 queued at the Core.
+   3. Build the strategy's extra `structures` once their conditions hold.
+   4. Keep each Foundry's queue at 2 or fewer, picking units from the
+      composition weights. Scouting overrides can shift the weights.
+6. **Army control:**
+   - Units gather at the rally point in front of the base.
+   - When the army reaches `firstWave` (then `wave`), it **attack-moves to the
+     enemy Command Core**. Near the Core with no enemy units within 200 px, it
+     issues a direct `attack` on the Core.
+   - If the army falls below `retreatBelow` of its wave size, it pulls back to
+     the rally point. Rush never retreats.
+   - While a wave is out, new units reinforce it if `reinforce` is set.
+
+Building spots are offsets from the team's own Core, given for the west base
+and mirrored for the east base. If a spot is taken, the engine searches nearby
+tiles in a spiral and keeps a 1-tile margin free around each building, so it
+never walls itself in.
+
+### Strategies (`src/data/strategies.js`)
+
+| | **Rush** | **Economy-Boom** | **Turtle-and-Tech** |
+|---|---|---|---|
+| Opening | drone, depot, drone, foundry, striker, striker, drone | drone, drone, depot, drone, drone, depot, drone, drone, foundry, drone | drone, drone, depot, drone, foundry, spire, drone, spire |
+| Worker target | 8 | 16 | 12 |
+| Extra structures | none | 2nd Foundry once 12+ Drones; 3rd Depot once 14+ Drones | Spires up to 4 (a new one when the army ≥ 2 × Spires) |
+| Composition (weights) | Striker 3, Sparker 1 | Striker 2, Sparker 2, Bulwark 1, Lancer 1 | Bulwark 2, Lancer 2, Sparker 1 |
+| First wave / later waves | 4 / 4 units | 14 / 10 units | 10 / 8 units |
+| Retreat below | never | 35% of the wave | 40% of the wave |
+| Reinforce a wave | yes | no | no |
+| Scout drone sent at | 30 s | 60 s | 90 s |
+
+Every strategy also defends: enemy combat units within 16 tiles of its
+buildings pull the army home, whatever the wave state.
+
+### Scouting: what the AI can see
+
+This is a *lightweight scan* of AI perception, not a fog-of-war game mechanic:
+the player still sees the whole map, as PROJECT.md requires.
+
+- Every **2 s** the AI records enemy units and buildings that are:
+  - within **16 tiles (512 px)** of any of its own buildings (base watch), or
+  - within **7 tiles (224 px)** of any of its own units, including one **scout
+    Drone** that walks to the enemy start at the time in the strategy table and
+    then returns to mining.
+- It remembers each sighting (type, position, time) for **90 s**.
+- From that memory it derives: the enemy combat units seen by type, the enemy
+  buildings known, and the enemy units currently near its base.
+
+### Scouting-triggered reactions
+
+| Trigger | Condition | Reaction |
+|---|---|---|
+| **Early aggression** | Before **5:00**, at least **2** enemy combat units inside base watch | Enter **defend** mode: cancel the wave, attack-move the army to the threat, bias production 70% toward counters of the attacking types, and queue 1 Spire (Turtle: 2) if the team has none. Defend mode ends after **20 s** with no enemy near the base. |
+| **Massing** | An enemy combat type with at least **4** seen *and* at least **40%** of the enemy army seen | **Counter composition:** 70% of new production goes to that type's counter from the Phase 1 table. It lasts until the condition clears. |
+
+Counter picks (from the PROJECT.md counter table):
+- Striker is countered by Bulwark (with Sparker).
+- Sparker is countered by Bulwark (with Striker).
+- Bulwark is countered by Lancer.
+- Lancer is countered by Striker (with Sparker).
+
+### Difficulty (`src/data/difficulty.js`)
+
+Difficulty controls *which strategy runs* and *how well-timed the script is*.
+It never makes the AI smarter, and it never cheats.
+
+| | Easy | Normal | Hard |
+|---|---|---|---|
+| Default strategy | Economy-Boom | Turtle-and-Tech | Rush |
+| Decision interval | 2.5 s | 1.2 s | 0.5 s |
+| Extra delay after each opening step | 6 s | 2 s | 0 s |
+| Reaction delay before a trigger takes effect | 25 s | 10 s | 3 s |
+| Worker factor (× worker target) | 0.7 | 0.9 | 1.0 |
+
+The start screen also lets the player pick the strategy explicitly (Auto uses
+the default above), or play the Phase 1 **Sandbox** with no opponent.
+
+## Controls added in Phase 2
+
+- **Control groups:** Chrome reserves Ctrl+1–8 for tab switching, so pages
+  never receive those keys. Phase 2 fixes this in three ways:
+  - **Shift+1–9** is the primary assign key. Ctrl+1–9 still works wherever the
+    browser delivers it.
+  - A **control-group bar** in the HUD shows each group's size. Click a slot to
+    recall it, and Shift-click or right-click to assign the current selection.
+  - A **Fullscreen** button requests the Keyboard Lock API, which lets Chrome
+    deliver Ctrl+1–9 to the game while in fullscreen.
+- **Esc** during a match does nothing new. The result screen offers
+  **Play again** and **Change difficulty**.
+
+## Phase 2 verification
+
+1. **Regression:** every Phase 1 test still passes, and the sandbox bot test
+   now runs through the AI engine.
+2. **Playthroughs:** each strategy plays a full match against a fixed
+   player-side script in CI. It completes its opening, trains an army, launches
+   at least one attack wave and reaches the enemy base, and the match ends with
+   a declared result.
+3. **Scouting:** scripted scenarios trigger early aggression and massing for
+   each unit type, and the tests assert the branch taken.
+4. **Supply:** both teams are capped identically, and Depots raise the cap (to
+   the hard max of 60).
+5. **Win/lose:** destroying either Core ends the match with the right result;
+   simultaneous loss is a draw; the time limit always ends the match.
+6. **Fairness:** repeated bot-vs-AI runs per difficulty with a competent and a
+   novice player-side policy. Win rates are reported in the test output and
+   the README.
