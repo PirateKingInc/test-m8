@@ -5,7 +5,8 @@ import { Sfx } from './audio.js';
 
 const Phaser = globalThis.Phaser;
 const params = new URLSearchParams(location.search);
-const world = new World({ seed: Number(params.get('seed')) || 1337, PF: globalThis.PF });
+const setup = params.get('mode') === 'match' ? 'match' : 'start';
+const world = new World({ seed: Number(params.get('seed')) || 1337, PF: globalThis.PF, setup });
 const hud = new Hud();
 const sfx = new Sfx();
 const scene = new GameScene(world, hud, sfx);
