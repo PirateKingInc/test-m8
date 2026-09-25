@@ -42,7 +42,8 @@ export class GameScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
     this.keys = this.input.keyboard.addKeys('UP,DOWN,LEFT,RIGHT,HOME');
     this.keys.HOME.on('down', () => this.centerOnCore());
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.lastAttack) this.cameras.main.centerOn(this.lastAttack.x, this.lastAttack.y); });
+    this.input.keyboard.on('keydown-SPACE', () => this.jumpToAttack());
+    if (this.hud) this.hud.onAlertTap = () => this.jumpToAttack();
     this.pointerInside = false;
     this.game.canvas.addEventListener('mouseenter', () => { this.pointerInside = true; });
     this.game.canvas.addEventListener('mouseleave', () => { this.pointerInside = false; });
@@ -60,6 +61,10 @@ export class GameScene extends Phaser.Scene {
     this.ui.on((name) => {
       if (name === 'select' || name === 'command') this.sfx?.ui(name);
     });
+  }
+
+  jumpToAttack() {
+    if (this.lastAttack) this.cameras.main.centerOn(this.lastAttack.x, this.lastAttack.y);
   }
 
   centerOnCore() {
@@ -114,7 +119,7 @@ export class GameScene extends Phaser.Scene {
           this.lastAttack = { x: e.tx, y: e.ty };
           if (this.world.time - (this.lastAlertAt ?? -Infinity) >= UNDER_ATTACK_COOLDOWN) {
             this.lastAlertAt = this.world.time;
-            this.hud?.toast('Your base is under attack! (Space to jump there)');
+            this.hud?.toast(this.touchMode ? 'Your base is under attack! Tap here to jump there' : 'Your base is under attack! (Space to jump there)', { alert: true });
             this.sfx?.ui('alert');
           }
         }
