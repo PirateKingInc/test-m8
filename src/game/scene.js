@@ -143,6 +143,11 @@ export class GameScene extends Phaser.Scene {
       if (b.hp < b.maxHp || sel.has(b.id)) drawHealth(g, b.x, b.y - b.ph / 2 - 6, b.pw - 12, b.hp / b.maxHp);
     }
     if (this.ui.attackMode || this.ui.devSpawn) drawCrosshair(g, this.ui.hover, this.ui.devSpawn ? 0xff7a45 : 0xff5a5a);
+    if (this.ui.armed) { // touch: a pulsing ring on each selected unit while an order is armed
+      const k = 0.5 + 0.5 * Math.sin(w.time * 8);
+      g.lineStyle(3, this.ui.armed === 'attack' ? 0xff5a5a : 0xffd24a, 0.5 + 0.5 * k);
+      for (const e of this.ui.ownSelected()) g.strokeCircle(e.x, e.y, (e.radius ?? Math.max(e.pw, e.ph) / 2) + 8 + 4 * k);
+    }
     this.fxGfx.clear();
     this.effects.draw(this.fxGfx, w.time);
     const ghost = this.ui.ghost();

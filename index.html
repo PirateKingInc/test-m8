@@ -20,6 +20,7 @@
     <span id="fps" class="dim"></span>
   </div>
   <div id="toast"></div>
+  <div id="armed-banner" hidden></div>
   <div id="tutorial" class="hud" hidden>
     <div class="tut-head"><span class="tut-title">TUTORIAL</span> <span id="tutorial-step" class="dim"></span>
       <button id="tutorial-skip">Skip</button></div>
@@ -68,7 +69,11 @@
     <button data-spawn="sparker">Sparker</button><button data-spawn="bulwark">Bulwark</button><button data-spawn="lancer">Lancer</button>
   </div>
   <div id="touchbar" class="hud" hidden>
+    <button data-touch="order" title="Order: then tap where to go, or an enemy, crystal or building">➜<span>Order</span></button>
+    <button data-touch="attack" title="Attack-move: then tap a spot; units fight anything on the way">⚔<span>Attack</span></button>
+    <button data-touch="stop" title="Stop the selected units">■<span>Stop</span></button>
     <button data-touch="box" title="Box select: drag a box around your units">▭<span>Box</span></button>
+    <button data-touch="cancel" title="Cancel the armed order or placement">✕<span>Cancel</span></button>
     <button data-touch="base" title="Center the camera on your Command Core">⌂<span>Base</span></button>
   </div>
   <div id="groups" title="Control groups: click to select, Shift-click or right-click to assign the current selection (keys: Shift+1-9 assign, 1-9 select)"></div>

@@ -10,9 +10,13 @@ test('Shift+digit assigns a control group and digit recalls it (no browser-reser
   const ids = await droneIds(page);
   await select(page, ids.slice(0, 2));
   await page.keyboard.press('Shift+Digit2');
+  // Phaser handles key events on its next game-loop tick, so wait for the
+  // assignment to land before changing the selection (else, on a slow frame,
+  // the group would be assigned from the already-cleared selection).
+  await expect.poll(() => page.evaluate(() => (window.__game.scene.ui.groups.groups.get(2) || []).length)).toBe(2);
   await select(page, []);
   await page.keyboard.press('Digit2');
-  expect(await selected(page)).toEqual(ids.slice(0, 2));
+  await expect.poll(() => selected(page)).toEqual(ids.slice(0, 2));
   await expect(page.locator('#groups button[data-group="2"] span')).toHaveText('×2');
   expect(errors).toEqual([]);
 });
@@ -42,9 +46,10 @@ test('Ctrl+digit is still honoured and its browser default is prevented', async 
     return ev.defaultPrevented;
   });
   expect(prevented).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window.__game.scene.ui.groups.groups.get(7) || []).length)).toBe(1); // see above
   await select(page, []);
   await page.keyboard.press('Digit7');
-  expect(await selected(page)).toEqual(ids.slice(0, 1));
+  await expect.poll(() => selected(page)).toEqual(ids.slice(0, 1));
 });
 
 test('Fullscreen button requests fullscreen and keyboard lock without errors', async ({ page }) => {

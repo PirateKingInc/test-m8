@@ -64,15 +64,45 @@ export class Hud {
       const act = btn.dataset.touch;
       if (act === 'box') ui.armBox();
       else if (act === 'base') scene.centerOnCore();
+      else if (act === 'order' || act === 'attack') ui.arm(act);
+      else if (act === 'stop') ui.stop();
+      else if (act === 'cancel') ui.disarm();
     });
+    this.banner = doc.getElementById('armed-banner');
   }
 
-  updateTouchBar(ui) {
-    if (!this.touchbar || this.touchbar.hidden) return;
+  // What the next tap will do, in words (touch only).
+  armedText(ui, world) {
+    if (ui.placing) return `Drag to position the ${BUILDINGS[ui.placing].name}, lift your finger to build. ✕ cancels.`;
+    if (ui.boxArmed) return '▭ Drag a box around your units';
+    if (ui.armed === 'attack') return '⚔ Tap where to attack-move: units fight anything on the way';
+    if (ui.armed === 'order') {
+      const units = ui.ownSelected('unit');
+      if (!units.length) return '➜ Tap where new units should gather (rally point)';
+      return units.some((u) => u.type === 'drone')
+        ? '➜ Tap a spot to move, an enemy to attack, a crystal to mine or a site to build'
+        : '➜ Tap a spot to move there, or an enemy to attack it';
+    }
+    return '';
+  }
+
+  updateTouchBar(ui, world) {
+    if (!this.touchbar || this.touchbar.hidden) { if (this.banner) this.banner.hidden = true; return; }
+    const canOrder = ui.canOrder(), hasUnits = ui.ownSelected('unit').length > 0;
+    const busy = !!(ui.armed || ui.boxArmed || ui.placing);
+    const enabled = { order: canOrder, attack: hasUnits, stop: hasUnits, cancel: busy, box: true, base: true };
     for (const b of this.touchbar.querySelectorAll('button[data-touch]')) {
       const act = b.dataset.touch;
+      b.disabled = !enabled[act];
       b.classList.toggle('armed', act === 'box' ? ui.boxArmed : ui.armed === act);
     }
+    // Draw the eye to Order the moment it becomes useful.
+    const orderBtn = this.touchbar.querySelector('[data-touch="order"]');
+    if (canOrder && !this.couldOrder) { orderBtn.classList.remove('pulse'); void orderBtn.offsetWidth; orderBtn.classList.add('pulse'); }
+    this.couldOrder = canOrder;
+    const text = this.armedText(ui, world);
+    this.banner.hidden = !text;
+    if (text && this.banner.textContent !== text) this.banner.textContent = text;
   }
 
   setOpponent(opp, doc = document) {
@@ -131,7 +161,7 @@ export class Hud {
     if (!ui) return;
     this.ui = ui;
     this.updateGroups(world, ui);
-    this.updateTouchBar(ui);
+    this.updateTouchBar(ui, world);
     // Only touch the DOM when content changes, so buttons stay clickable.
     const sel = ui.selection.entities(world);
     const html = this.selectionHtml(world, sel);
