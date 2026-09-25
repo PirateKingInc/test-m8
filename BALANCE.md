@@ -1,8 +1,8 @@
 # Balance report (Phase 3)
 
 This file records how the three AI strategies fare against each other, before
-and after Phase 3 tuning, and how the Economy-Boom mirror's side bias was found
-and fixed. Every number here comes from the headless batch runner and is
+and after Phase 3 tuning, how the Economy-Boom mirror's side bias was found
+and fixed, and which balance targets were **not** met, and why. Every number here comes from the headless batch runner and is
 reproducible: the sim is deterministic, so the same code and seeds give the same
 results on any machine.
 
@@ -71,6 +71,179 @@ the Phase 2 code at the start of Phase 3.
 - **Match length.** Rush-vs-X games end at about 6 minutes. Turtle games run
   11–13 minutes. The 30:00 time limit decided just 5 of 1,800 games, all of
   them Turtle mirrors.
+
+## After: the shipped data
+
+`balance/after.json` holds this run: 100 seeds per cell, 1,800 matches, on the
+final Phase 3 data (strategies, difficulty caps, expansion, targeting).
+
+**Easy timing** (row's win rate vs column; diagonal = mirror, west side's win rate)
+
+| | Rush | Boom | Turtle |
+|---|---|---|---|
+| **Rush** | 54% west | **68%** (58–76%) | **1%** (0–5%) |
+| **Boom** | **32%** (24–42%) | 53% west | **41%** (32–51%) |
+| **Turtle** | **99%** (95–100%) | **59%** (49–68%) | 48% west |
+
+**Normal timing**
+
+| | Rush | Boom | Turtle |
+|---|---|---|---|
+| **Rush** | 46% west | **49%** (39–59%) | **19%** (13–28%) |
+| **Boom** | **51%** (41–61%) | 54% west | **51%** (41–61%) |
+| **Turtle** | **81%** (72–87%) | **49%** (39–59%) | 52% west |
+
+**Hard timing**
+
+| | Rush | Boom | Turtle |
+|---|---|---|---|
+| **Rush** | 54% west | **55%** (45–64%) | **23%** (16–32%) |
+| **Boom** | **45%** (36–55%) | 57% west | **49%** (39–59%) |
+| **Turtle** | **77%** (68–84%) | **51%** (41–61%) | 49% west |
+
+### Against the 60% ceiling
+
+| Cross cells within ~60% | Baseline | Best strategy balance (not shipped) | Shipped |
+|---|---|---|---|
+| Easy | 0 of 3 | 3 of 3 (39–61%) | 1 of 3 |
+| Normal | 0 of 3 | 3 of 3 (39–61%) | 2 of 3 |
+| Hard | 0 of 3 | 2 of 3 | 2 of 3 |
+| Worst cell | 100% | 77% (Hard, Turtle vs Rush) | 99% (Easy, Turtle vs Rush) |
+
+The shipped data does **not** meet the 60% ceiling everywhere. Two things
+account for the gap:
+
+- **Hard (the rock-paper-scissors exception).** Turtle beats Rush 77% at Hard.
+  This is accepted as a documented exception, not an open bug; see below.
+- **Easy and Normal.** These are a deliberate trade against the difficulty
+  table; see "Balance vs difficulty".
+
+Every mirror cell is within 46–57% west: the side-bias fix holds on the final
+data.
+
+### Best strategy balance, measured (not shipped)
+
+Before the difficulty cap described below, the same strategy data measured
+**17 of 18 cross cells within 39–61%**. Only Hard Turtle vs Rush was out, at
+77%.
+
+- **Easy:** Rush 39% vs Boom, Rush 53% vs Turtle, Boom 39% vs Turtle.
+- **Normal:** 42%, 40% and 39% respectively.
+- **Hard:** 55%, 23% and 49%.
+
+That state failed the Phase 2 difficulty table, so it is not what ships.
+
+### The rock-paper-scissors finding
+
+With exactly three strategies, each one's strength is defined against the other
+two, and the tuning passes showed the three form a tight triangle.
+
+- **Rush** wins by hitting before the enemy army exists. Only an early,
+  greedy **Boom** is vulnerable to it.
+- **Turtle** exists to stop an early attack: Spires, a quick defend reaction,
+  and a Sparker-heavy army.
+- **Boom** out-produces a Turtle that sits back.
+
+Every lever that moved **Rush vs Turtle** at Hard moved **Rush vs Boom** or
+**Boom vs Turtle** just as much, because it also changed how Rush or its
+defender fares against the third strategy. Levers tried, measured on 48–100
+fresh seeds each:
+
+- Turtle's Spire count and defend reaction
+- Turtle's Foundry count and composition
+- Rush's supply buffer, wave size, retreat and composition
+- Boom's opening, Foundry count, defensive Spires and composition
+- Hard's reaction delay, decision interval, jitter and worker factor
+
+Three examples of the trade:
+
+| Change | Rush vs Turtle | Rush vs Boom | Boom vs Turtle |
+|---|---|---|---|
+| Sparker-heavy Rush | 60% | 81% | – |
+| Plus a 4th Boom Foundry | – | 33% | 83% |
+| Rush retreats when losing | 35% | 83% | – |
+
+Whichever cell is fixed, another breaks. Three strategies in a triangle can't
+all be pulled to 50/50 at once with these levers. A real fix needs a new lever
+the scripts don't have, such as Sparker kiting, AI micro or a fourth strategy.
+Those are all out of scope, and are recorded in BACKLOG.md.
+
+**Design decision.** A uniform 60% ceiling across all pairings is **not
+enforced at Hard**. At Hard, part of the difficulty a player experiences comes
+from which matchup they draw. That is a documented design trade-off, not a
+defect. The player can pick the AI's strategy on the start screen.
+
+### Balance vs difficulty
+
+The Phase 2 difficulty table must hold:
+
+- a competent player beats every tier
+- a novice loses at every tier
+- harder tiers are harder
+
+In Phase 2 that ordering came from **strategy strength**: Easy played the
+weakest script and Hard the strongest. Balancing the strategies removed that
+source. The best-balance state failed the table, and a policy × tier × strategy
+measurement (12 fairness seeds each) showed why:
+
+- The timing knobs barely move outcomes: decision interval, step delay,
+  reaction delay and jitter.
+- A lower worker factor can even *help*, because fewer Drones means an earlier
+  army.
+
+So difficulty now also caps **production**. The AI may run at most 1 Foundry
+at Easy and 2 at Normal. That is an execution handicap: no rule changes and no
+extra resources. With the cap, the default strategies were re-picked from the
+same measurement: Easy Turtle, Normal Rush, Hard Boom.
+
+- **A milder cap fails.** A cap of 2 at Easy and 3 at Normal was measured
+  once, and no choice of default strategies then satisfied the table.
+- **The cost.** The balance matrix plays both sides at the same tier, so the
+  cap binds both. It hurts Rush most, since Rush wins by running many
+  Foundries. That produces Turtle vs Rush at 99% (Easy) and 81% (Normal).
+- **The ranking.** Of the states measured, this is the only one that meets the
+  hard requirement (the difficulty table) and has the best balance at Hard.
+
+### Tuned numbers
+
+All balance changes are data in `src/data/strategies.js` and `src/data/difficulty.js`.
+
+| Data | Phase 2 | Phase 3 |
+|---|---|---|
+| Rush workers / Foundries / float | 8 / 3 / 250 | 10 / 5 / 200 |
+| Rush army mix | Striker 3 : Sparker 1 | Striker 2 : Sparker 2 : Lancer 0.5 |
+| Rush first wave / waves / reinforce group | 6 / 5 / 3 | 14 / 10 / 4 |
+| Boom opening | Foundry after 8 Drones | Foundry after 10 Drones (greedier) |
+| Boom 2nd Foundry at / waves | 12 Drones / 14 then 10 units | 15 Drones / 34 then 26 army supply |
+| Boom defend Spires | 1 | 0 |
+| Turtle army mix | Bulwark 3 : Lancer 2 : Sparker 2 | Sparker 2 : Bulwark 2 : Lancer 1 |
+| Turtle Foundries | 1, then a 2nd when Lumen floats | 2nd at 8 Drones, up to 3 |
+| Turtle first wave | 36 army supply | 30 army supply |
+| Wave-size jitter (all) | none | ±30% (seeded) |
+| Easy step delay | 6 s | 2 s |
+| Difficulty Foundry cap | none | Easy 1, Normal 2 |
+| Default strategies (Easy / Normal / Hard) | Rush / Turtle / Boom | Turtle / Rush / Boom |
+| Expansion | none | per strategy (SPEC.md "AI expansion") |
+
+**Unit and building stats are unchanged.** Bulwark and Spire cost changes were
+measured and rejected: they moved Rush-vs-Turtle and Boom-vs-Turtle together.
+`test/counters.test.js`, the 1v1 counter table, still passes 100% in every row.
+
+### Sudden death (30:00)
+
+In the final matrix, **86 of 1,800 games (4.8%)** reached the 30:00 limit and
+were decided on score. The baseline had 5.
+
+- **Where.** Mostly mirror and Boom/Turtle games: 36 mirror games, 20
+  Boom-vs-Turtle and 30 involving Rush, spread across all three tiers. Once
+  every field is mined out, both economies stall and neither army can finish
+  the other.
+- **Side.** Score decided 38 for the west and 48 for the east, which is 44%
+  west with a 95% interval of 34–55%. That is consistent with no side bias,
+  and none of these ended in a draw.
+
+The data gives no reason to move the limit. It stays at 30:00. The rise
+reflects longer, more even games, not a flaw in the score tiebreak.
 
 ## Side bias
 
