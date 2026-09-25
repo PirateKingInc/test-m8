@@ -43,9 +43,9 @@ test('the game and tutorial still work when localStorage is blocked', async ({ p
 test('menu describes the chosen strategy', async ({ page }) => {
   await openGame(page, '?mode=match');
   await page.goto('/');
-  await expect(page.locator('#strategy-note')).toContainText('Turtle-and-Tech'); // Normal's default
-  await page.locator('#strategy').selectOption('rush');
-  await expect(page.locator('#strategy-note')).toContainText('Rush');
+  await expect(page.locator('#strategy-note')).toContainText('Rush'); // Normal's default (Phase 3)
+  await page.locator('#strategy').selectOption('turtle');
+  await expect(page.locator('#strategy-note')).toContainText('Turtle-and-Tech');
 });
 
 test('result screen shows match statistics; command buttons explain costs and counters', async ({ page }) => {

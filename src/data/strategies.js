@@ -64,7 +64,7 @@ export const EXPANSION = {
 export const STRATEGIES = {
   rush: {
     name: 'Rush',
-    description: 'Fast aggression: minimal economy, cheap Strikers and Sparkers, early continuous attacks.',
+    description: 'Aggression: a lean economy feeding many Foundries of Strikers and Sparkers (plus a few Lancers), big early waves and constant reinforcements.',
     opening: [
       { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { build: 'foundry' },
       { train: 'striker' }, { train: 'striker' }, { train: 'drone' },
@@ -102,7 +102,7 @@ export const STRATEGIES = {
 
   boom: {
     name: 'Economy-Boom',
-    description: 'Extra Depots and gathering early, delayed military, then out-produces late.',
+    description: 'Greed: ten Drones and two Depots before its first Foundry, expands early, then attacks with a big mixed army and falls back when a wave breaks.',
     opening: [
       { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { train: 'drone' },
       { build: 'depot', spot: 'depot2' }, { train: 'drone' }, { train: 'drone' }, { train: 'drone' }, { train: 'drone' },
@@ -132,7 +132,7 @@ export const STRATEGIES = {
 
   turtle: {
     name: 'Turtle-and-Tech',
-    description: 'Heavy defenses first, builds up behind Sentry Spires, then attacks late with Bulwarks and Lancers.',
+    description: 'Defense: Sentry Spires on its front, a Sparker/Bulwark/Lancer army, fortified expansions, and a heavy push once it has built up.',
     opening: [
       { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { build: 'foundry' },
       { build: 'spire' }, { train: 'drone' }, { build: 'spire', spot: 'spire2' },
