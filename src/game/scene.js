@@ -1,9 +1,9 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawProgress, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
+import { drawProgress, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair } from './draw.js';
 import { InputController } from './input.js';
 import { Effects } from './effects.js';
 import { MatchStats } from './stats.js';
-import { bakeAll } from '../art/atlas.js';
+import { bakeAll, TERRAIN_KEY } from '../art/atlas.js';
 import { SpriteLayer } from './sprites.js';
 
 const Phaser = globalThis.Phaser;
@@ -26,14 +26,9 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const w = this.world;
-    // Bake the static terrain once; redrawing ~5k shapes per frame is wasteful.
-    const terrain = this.make.graphics({}, false);
-    drawTerrain(terrain, w);
-    this.add.renderTexture(0, 0, w.width, w.height).setOrigin(0).draw(terrain);
-    terrain.destroy();
-    bakeAll(this.textures); // Phase 4: every sprite, drawn in code
+    bakeAll(this.textures, w.grid); // Phase 4: every sprite and the terrain, drawn in code
+    this.add.image(0, 0, TERRAIN_KEY).setOrigin(0).setDepth(0);
     this.sprites = new SpriteLayer(this);
-    this.underGfx = this.add.graphics().setDepth(2); // crystals and buildings (until their sprites land)
     this.gfx = this.add.graphics().setDepth(4); // overlays above the sprites
     this.fxGfx = this.add.graphics().setDepth(5);
     this.effects = new Effects(this);
@@ -135,10 +130,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   render(alpha) {
-    const g = this.gfx, w = this.world, under = this.underGfx;
+    const g = this.gfx, w = this.world;
     g.clear();
-    under.clear();
-    for (const n of w.ofKind('node')) drawNode(under, n, w.time);
     for (const b of w.ofKind('building')) if (!b.built) drawProgress(g, b);
     this.sprites.sync(w, alpha);
     const sel = this.ui.selection;

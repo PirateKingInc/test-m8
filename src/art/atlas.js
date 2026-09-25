@@ -3,15 +3,22 @@
 import { UNIT_TYPES, UNIT_BOX, drawUnitSprite, drawTeamRing } from './units.js';
 import { BUILDING_TYPES, STATES, BUILDING_MARGIN, drawBuildingSprite } from './buildings.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { paintTerrain, drawCrystal, CRYSTAL_STAGES, CRYSTAL_BOX } from './terrain.js';
 
 export const ART_SCALE = 2;
 export const TEAMS = [1, 2];
 export const RING_R = 12; // world-px radius the ring texture is drawn for
 
+// Zoomed out, unit sprites are drawn up to 1.6x larger so they stay legible
+// (visual only: collision and picking use the sim's radius).
+export const unitBoost = (zoom) => Math.min(1.6, Math.max(1, 0.8 / zoom));
+
 // Texture keys, shared with the renderer.
 export const unitKey = (type, team, carry = false) => `u-${type}-${team}${carry ? '-carry' : ''}`;
 export const ringKey = (team) => `ring-${team}`;
 export const buildingKey = (type, team, state) => `b-${type}-${team}-${state}`;
+export const crystalKey = (stage) => `crystal-${stage}`;
+export const TERRAIN_KEY = 'terrain';
 
 // Create a canvas texture of w x h world px and draw into it (origin at center).
 export function bake(textures, key, w, h, draw) {
@@ -47,7 +54,22 @@ export function bakeBuildings(textures, tile = 32) {
   return keys;
 }
 
-// Everything the game needs; the terrain slice adds crystals and ground here.
-export function bakeAll(textures) {
-  return [...bakeUnits(textures), ...bakeBuildings(textures)];
+export function bakeCrystals(textures) {
+  return CRYSTAL_STAGES.map((stage) => bake(textures, crystalKey(stage), CRYSTAL_BOX, CRYSTAL_BOX, (ctx) => drawCrystal(ctx, stage)));
+}
+
+// The whole map in one texture, at 1 px per world px (a 2x map would be ~80 MB).
+export function bakeTerrain(textures, grid) {
+  if (textures.exists(TERRAIN_KEY)) textures.remove(TERRAIN_KEY);
+  const tex = textures.createCanvas(TERRAIN_KEY, grid.cols * grid.tile, grid.rows * grid.tile);
+  paintTerrain(tex.getContext(), grid.cols, grid.rows, grid.tile, (tx, ty) => !!grid.rock[grid.idx(tx, ty)]);
+  tex.refresh();
+  return TERRAIN_KEY;
+}
+
+// Every sprite; the terrain needs the map grid.
+export function bakeAll(textures, grid) {
+  const keys = [...bakeUnits(textures), ...bakeBuildings(textures), ...bakeCrystals(textures)];
+  if (grid) keys.push(bakeTerrain(textures, grid));
+  return keys;
 }

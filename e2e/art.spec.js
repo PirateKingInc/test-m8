@@ -97,3 +97,15 @@ test('every building differs in each construction state, types stay distinct, an
   }
   expect(errors).toEqual([]);
 });
+
+test('the visual reference sheet renders every sprite without errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.route('https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js', (r) => r.fulfill({ path: 'node_modules/phaser/dist/phaser.min.js', contentType: 'text/javascript' }));
+  await page.goto('/sheet.html');
+  await page.waitForFunction(() => window.__sheet?.ready, null, { timeout: 20000 });
+  const keys = await page.evaluate(() => window.__sheet.textures);
+  // 2 teams x (6 units + carrying Drone + ring) + 2 x 4 buildings x 3 states + 3 crystals + terrain (+ Phaser defaults)
+  expect(keys).toBeGreaterThanOrEqual(2 * 8 + 24 + 3 + 1);
+  expect(errors).toEqual([]);
+});

@@ -10,7 +10,7 @@ export const METAL = { base: '#6b7788', light: '#aeb9c8', dark: '#3a4250', deep:
 export const LUMEN = { base: '#b69bff', light: '#e4d8ff', dark: '#6a4fd0', glow: 'rgba(182, 155, 255, 0.35)' };
 export const WARM = { base: '#ffc24a', light: '#fff0b8', dark: '#b07a10' }; // lance, furnace, construction
 export const GROUND = { base: '#19212d', mottle: ['#1c2533', '#172029', '#1e2837'], grid: 'rgba(60, 78, 104, 0.18)' };
-export const ROCK = { base: '#4a4f5c', light: '#7c8292', dark: '#2a2e37', face: '#1e2128', crack: '#353a45' };
+export const ROCK = { base: '#3b3f4a', light: '#6f7584', dark: '#23262e', face: '#15171c', crack: '#2c3038' };
 export const HAZARD = { yellow: '#ffd24a', black: '#1a1a1a' };
 
 // Hex colour -> Phaser integer.

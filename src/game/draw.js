@@ -1,57 +1,6 @@
-// Procedural art. Everything is drawn with Phaser Graphics; there are no asset files.
-import { createRng } from '../sim/rng.js';
+// Overlays drawn with Phaser Graphics each frame: selection, markers, the
+// placement ghost, health and progress bars. Sprites live in src/art.
 
-export const TEAM_COLORS = { 1: 0x39d3c3, 2: 0xff7a45 };
-const GROUND = [0x19212d, 0x1a222f, 0x1b2330, 0x1a2230];
-const ROCK = 0x3a4150, ROCK_LIGHT = 0x566073, ROCK_DARK = 0x262b35;
-const CRYSTAL = 0xb69bff, CRYSTAL_DARK = 0x6a4fd0, CRYSTAL_GLOW = 0xe4d8ff;
-
-export function drawTerrain(g, world) {
-  const { grid } = world, T = grid.tile, rng = createRng(7);
-  for (let ty = 0; ty < grid.rows; ty++) {
-    for (let tx = 0; tx < grid.cols; tx++) {
-      g.fillStyle(GROUND[Math.floor(rng.next() * GROUND.length)], 1);
-      g.fillRect(tx * T, ty * T, T, T);
-      if (rng.next() < 0.08) {
-        g.fillStyle(0x243044, 1);
-        g.fillCircle(tx * T + rng.range(6, 26), ty * T + rng.range(6, 26), rng.range(1, 2.5));
-      }
-    }
-  }
-  g.lineStyle(1, 0x222c3c, 0.35);
-  for (let x = 0; x <= grid.cols; x += 4) g.lineBetween(x * T, 0, x * T, grid.rows * T);
-  for (let y = 0; y <= grid.rows; y += 4) g.lineBetween(0, y * T, grid.cols * T, y * T);
-  for (let ty = 0; ty < grid.rows; ty++) {
-    for (let tx = 0; tx < grid.cols; tx++) {
-      if (!grid.rock[grid.idx(tx, ty)]) continue;
-      const x = tx * T, y = ty * T, j = rng.range(-3, 3);
-      g.fillStyle(ROCK_DARK, 1);
-      g.fillRect(x, y, T, T);
-      g.fillStyle(ROCK, 1);
-      g.fillTriangle(x + 2, y + T - 2, x + T / 2 + j, y + 3, x + T - 2, y + T - 2);
-      g.fillStyle(ROCK_LIGHT, 1);
-      g.fillTriangle(x + T / 2 + j, y + 3, x + T / 2 + j + 5, y + 12, x + T / 2 + j - 4, y + 12);
-    }
-  }
-}
-
-export function drawNode(g, n, t) {
-  const fill = n.amount / n.maxAmount;
-  const pulse = 0.5 + 0.5 * Math.sin(t * 2 + n.id);
-  g.fillStyle(CRYSTAL_DARK, 0.25 + 0.15 * pulse);
-  g.fillCircle(n.x, n.y, 30);
-  const shards = [[-14, 10, 9, 26], [0, 12, 12, 34], [14, 10, 8, 22], [-5, 16, 6, 16], [8, 18, 6, 14]];
-  const scale = 0.55 + 0.45 * fill;
-  for (const [dx, by, w, h] of shards) {
-    const bx = n.x + dx, base = n.y + by * 0.6, top = base - h * scale;
-    g.fillStyle(CRYSTAL_DARK, 1);
-    g.fillTriangle(bx - w / 2, base, bx, top, bx + w / 2, base);
-    g.fillStyle(CRYSTAL, 1);
-    g.fillTriangle(bx - w / 4, base - 2, bx, top + 2, bx + w / 2 - 1, base - 1);
-    g.fillStyle(CRYSTAL_GLOW, 0.5 + 0.4 * pulse);
-    g.fillTriangle(bx - 1, top + 5, bx, top + 1, bx + 2, top + 8);
-  }
-}
 
 // Construction progress bar under an unfinished building's footprint.
 export function drawProgress(g, b) {
