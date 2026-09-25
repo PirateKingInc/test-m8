@@ -37,3 +37,12 @@ export function assertFullSequence({ ai, result, openingDoneAt }, strategy) {
 test('Rush plays its full build/train/attack sequence against the fixed player script', () => {
   assertFullSequence(playthrough('rush'), 'rush');
 });
+
+test('Economy-Boom plays its full build/train/attack sequence against the fixed player script', () => {
+  const run = playthrough('boom');
+  assertFullSequence(run, 'boom');
+  const { ai } = run;
+  assert.ok(ai.stats.built.depot >= 3, `booms with extra Depots (${ai.stats.built.depot})`);
+  assert.ok(ai.stats.built.foundry >= 2, `out-produces with 2+ Foundries (${ai.stats.built.foundry})`);
+  assert.ok((ai.stats.trained.drone || 0) + 4 >= 14, 'grows a big economy');
+});
