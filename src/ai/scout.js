@@ -10,6 +10,10 @@ export class Scout {
     this.e = engine;
     this.cfg = cfg;
     this.memory = new Map(); // enemy id -> { kind, type, x, y, seenAt, nearBase }
+    // Enemy Command Cores ever seen (Phase 3 attack targeting). Cores don't move,
+    // so one is forgotten only when its spot is back in view and it is gone.
+    this.cores = new Map(); // id -> { id, x, y, seenAt }
+    this.startEmptyAt = null; // when the enemy start was last seen with no Core
     this.nextScanAt = 0;
     this.scoutId = null;
     this.scoutSentAt = null;
@@ -35,14 +39,27 @@ export class Scout {
       }
       return { seen, base };
     };
+    const seenNow = new Set();
     for (const t of this.e.w.entities.values()) {
       if (t.team !== enemy || (t.kind !== 'unit' && t.kind !== 'building') || t.hp <= 0) continue;
       const v = inView(t.x, t.y);
-      if (v.seen) this.memory.set(t.id, { kind: t.kind, type: t.type, x: t.x, y: t.y, seenAt: now, nearBase: v.base });
+      if (!v.seen) continue;
+      this.memory.set(t.id, { kind: t.kind, type: t.type, x: t.x, y: t.y, seenAt: now, nearBase: v.base });
+      if (t.type === 'core') { this.cores.set(t.id, { id: t.id, x: t.x, y: t.y, seenAt: now }); seenNow.add(t.id); }
     }
-    // Sightings are remembered for `memory` seconds (even if that unit has since
-    // died: "the enemy fielded six Strikers" is still true information).
-    for (const [id, m] of this.memory) if (now - m.seenAt > this.cfg.memory) this.memory.delete(id);
+    for (const [id, c] of this.cores) if (!seenNow.has(id) && inView(c.x, c.y).seen) this.cores.delete(id);
+    const start = this.e.enemyStart();
+    if (inView(start.x, start.y).seen) {
+      const there = [...this.cores.values()].some((c) => Math.hypot(c.x - start.x, c.y - start.y) < 200);
+      this.startEmptyAt = there ? null : now;
+    }
+    // Unit sightings are remembered for `memory` seconds (even if that unit has
+    // since died: "the enemy fielded six Strikers" is still true information).
+    // Buildings don't move, so one is forgotten only once its spot is back in
+    // view without it (Phase 3).
+    for (const [id, m] of this.memory) {
+      if (m.kind === 'building' ? m.seenAt < now && inView(m.x, m.y).seen : now - m.seenAt > this.cfg.memory) this.memory.delete(id);
+    }
   }
 
   // The scout Drone: sent once at the strategy's scoutAt, walks to the enemy
@@ -95,6 +112,19 @@ export class Scout {
   intrudersSeen() {
     const now = this.e.w.time;
     return [...this.memory.values()].filter((m) => m.kind === 'unit' && COMBAT_TYPES.includes(m.type) && m.nearBase && now - m.seenAt < this.cfg.interval + 0.01);
+  }
+
+  // Is (x, y) inside the sight of one of our units right now?
+  sees(x, y) {
+    for (const u of this.e.mine('unit')) if (Math.hypot(u.x - x, u.y - y) <= this.cfg.sight) return true;
+    return false;
+  }
+
+  // Enemy Cores we know of, nearest to `from` first.
+  knownCores(from) {
+    const out = [...this.cores.values()];
+    if (from) out.sort((a, b) => Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y));
+    return out;
   }
 
   knownBuildings(type) {
