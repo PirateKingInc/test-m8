@@ -293,16 +293,25 @@ never walls itself in.
 
 ### Strategies (`src/data/strategies.js`)
 
+These are the tuned values from the playthroughs in slices 6–8. The data file
+is authoritative, and `test/playthrough.test.js` exercises each strategy.
+
 | | **Rush** | **Economy-Boom** | **Turtle-and-Tech** |
 |---|---|---|---|
 | Opening | drone, depot, drone, foundry, striker, striker, drone | drone, drone, depot, drone, drone, depot, drone, drone, foundry, drone | drone, drone, depot, drone, foundry, spire, drone, spire |
 | Worker target | 8 | 16 | 12 |
-| Extra structures | none | 2nd Foundry once 12+ Drones; 3rd Depot once 14+ Drones | Spires up to 4 (a new one when the army ≥ 2 × Spires) |
-| Composition (weights) | Striker 3, Sparker 1 | Striker 2, Sparker 2, Bulwark 1, Lancer 1 | Bulwark 2, Lancer 2, Sparker 1 |
-| First wave / later waves | 4 / 4 units | 14 / 10 units | 10 / 8 units |
-| Retreat below | never | 35% of the wave | 40% of the wave |
-| Reinforce a wave | yes | no | no |
+| Extra structures | Foundries up to 3 whenever Lumen ≥ 250 | 2nd Foundry once 12+ Drones; 3rd Depot once 14+ Drones; 3rd Foundry whenever Lumen ≥ 600 | Spires up to 4 (a new one per 2 army units); 2nd Foundry whenever Lumen ≥ 400 |
+| Composition (weights) | Striker 3, Sparker 1 | Striker 2, Sparker 2, Bulwark 1, Lancer 1 | Bulwark 3, Lancer 2, Sparker 2 |
+| First wave / later waves | 6 / 5 units | 14 / 10 units | army supply 36 / 30 (it builds up by supply) |
+| Retreat below | never | 35% of the wave | 30% of the wave |
+| Reinforce a wave | yes, in groups of 3 or more | no | no |
 | Scout drone sent at | 30 s | 60 s | 90 s |
+
+**Macro loop details:**
+- A Depot goes up when `free ≤ supplyBuffer + number of producers`.
+- Idle Drones spread over the four crystals nearest the base, least-busy first.
+- Any unfinished site of the AI's with no builder (for example, because the
+  builder died) is reassigned a Drone, so construction can never stall.
 
 Every strategy also defends: enemy combat units within 16 tiles of its
 buildings pull the army home, whatever the wave state.

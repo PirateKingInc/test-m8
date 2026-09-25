@@ -79,6 +79,31 @@ export const STRATEGIES = {
     scoutAt: 60,
   },
 
+  turtle: {
+    name: 'Turtle-and-Tech',
+    description: 'Heavy defenses first, builds up behind Sentry Spires, then attacks late with Bulwarks and Lancers.',
+    opening: [
+      { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { build: 'foundry' },
+      { build: 'spire' }, { train: 'drone' }, { build: 'spire', spot: 'spire2' },
+    ],
+    workerTarget: 12,
+    supplyBuffer: 3,
+    depotSpots: ['depot', 'depot2', 'depot3', 'depot4', 'depot5'],
+    structures: [
+      // Spires on the base front (toward the enemy), one more per 2 army units, up to 4.
+      { build: 'spire', spots: ['spire', 'spire2', 'spire3', 'spire4'], max: 4, armyPer: 2 },
+    ],
+    composition: { bulwark: 3, lancer: 2, sparker: 2 },
+    maxFoundries: 2,
+    floatLumen: 400,
+    // Builds up by army *supply* (heavy units cost 2-3), not unit count.
+    firstWaveSupply: 36,
+    waveSupply: 30,
+    retreatBelow: 0.3,
+    reinforce: false,
+    scoutAt: 90,
+  },
+
   // Fixed player-side script used by the strategy playthrough tests: a solid
   // defensive economy that never attacks, so each AI strategy must carry its
   // full build/train/attack sequence to win.

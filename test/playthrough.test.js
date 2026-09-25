@@ -46,3 +46,16 @@ test('Economy-Boom plays its full build/train/attack sequence against the fixed 
   assert.ok(ai.stats.built.foundry >= 2, `out-produces with 2+ Foundries (${ai.stats.built.foundry})`);
   assert.ok((ai.stats.trained.drone || 0) + 4 >= 14, 'grows a big economy');
 });
+
+test('Turtle-and-Tech plays its full build/train/attack sequence against the fixed player script', () => {
+  const run = playthrough('turtle');
+  assertFullSequence(run, 'turtle');
+  const { ai, m } = run;
+  assert.ok(ai.stats.built.spire >= 2, `builds Spires (${ai.stats.built.spire})`);
+  const heavy = (ai.stats.trained.bulwark || 0) + (ai.stats.trained.lancer || 0);
+  const all = ['striker', 'sparker', 'bulwark', 'lancer'].reduce((n, t) => n + (ai.stats.trained[t] || 0), 0);
+  assert.ok(heavy / all >= 0.6, `favours Bulwark/Lancer (${heavy}/${all})`);
+  const core = [...m.world.ofKind('building')].find((b) => b.team === 2 && b.type === 'core') || { x: 69 * 32 };
+  const spires = [...m.world.ofKind('building')].filter((b) => b.team === 2 && b.type === 'spire');
+  assert.ok(spires.every((sp) => sp.x < core.x), 'Spires stand on the front, toward the enemy');
+});
