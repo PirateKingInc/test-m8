@@ -23,6 +23,16 @@ These shipped in Phase 3:
 * the audio pass, visual juice, result-screen stats, tooltips and the
   first-run tutorial
 
+## Phase 4: Mobile & art (done)
+
+These shipped in Phase 4:
+* touch controls alongside the unchanged mouse and keyboard (the action bar,
+  tap, double-tap, Box, drag-pan, pinch-zoom and group hold)
+* sprite art drawn in code: units, buildings in three construction states,
+  crystals and terrain
+* a visual reference sheet
+* a tutorial for each input mode, what-you-can-do hints and phone layouts
+
 ## Post-project (not scheduled)
 
 The project's three phases are complete. These ideas were deliberately not
@@ -36,16 +46,21 @@ Phase 3.
 - [P3] Hold-position and patrol commands for players and the Turtle AI.
 - [P3] Drones auto-flee or retaliate when attacked while gathering.
 - [P3] AI micro: focus fire, pulling damaged units back, and Spire-aware pathing when attacking.
-- [P3] **Touch controls need real design work.** Box select, right-click commands and control groups have no obvious touch mapping. The game is desktop-only by decision.
-- [P3] Camera zoom (mouse wheel) with level-of-detail rendering.
+- [P4] Mouse-wheel zoom on desktop. Pinch-zoom exists on touch, and the renderer already draws sprites larger when zoomed out, but desktop zoom was not added so that the desktop controls stayed unchanged.
 - [P3] Settings panel (volume slider, edge-scroll toggle) and full key rebinding. Shift+digit, the HUD group bar and fullscreen Keyboard Lock cover the Ctrl+1–8 conflict.
 - [P3] Save/restore sandbox state (JSON snapshot of `World`).
 - [P3] Flow-field pathfinding if unit counts ever go far beyond 40.
 - [P3] Shift-queued waypoints/commands (command queueing).
 - [P3] Optional second tech tier (the hard cap is 2): e.g. an upgrade building that unlocks armor/damage upgrades.
-- [P3] Better building art, damage states and construction animation.
+- [P4] Building damage states and animated construction. Phase 4 draws three construction states; there's no damage look yet.
 - [P3] Accessibility: colorblind-safe team palettes and bigger UI scale.
 - [P3] Building rotation/footprint variety.
 - [P3] Smarter formation slot assignment when a move target straddles an obstacle.
-- [P3] Rendering: batch unit drawing into textures, or use sprite atlases generated at boot.
+- [P4] **Real-device testing.** Phase 4's touch controls are verified in Playwright/Chromium mobile emulation (CDP touch events), not on physical phones. Open questions:
+  - how iOS Safari handles gestures on the canvas
+  - whether the tap sizes feel right to real fingers
+  - how the notch and safe areas affect the layout
+  - frame rate on real GPUs (also see "Real GPU frame-rate measurement")
+- [P4] Build orders pull every selected Drone off mining, and they stay idle afterwards. A Drone can also be reassigned away from an unfinished site, stalling it. Both are sim rules, frozen in Phase 4. On a phone they're the first friction a new player hits: mobile playtests and the tutorial test both ran into them. A future change could send builders back to their crystal.
+- [P4] Landscape phones show group slots 1–6 only; slots 7–9 are hidden to fit the bottom panel. Portrait shows all nine.
 - [P3] Polish items from issue #59 that were not built: audio cues for supply-blocked, scout reports and wave-launched (the under-attack alarm exists); an on-building construction-progress ring and production-complete flash; a rally-point marker; an on-building queue progress bar (the HUD queue has one).
