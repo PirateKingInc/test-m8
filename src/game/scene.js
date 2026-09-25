@@ -9,9 +9,12 @@ const EDGE = 14; // px from the canvas edge that triggers edge-panning
 const MAX_STEPS_PER_FRAME = 8; // avoid a spiral of death after a stall
 
 export class GameScene extends Phaser.Scene {
-  constructor(world, hud, sfx) {
+  // stepSim: advances one fixed step (the world alone in the sandbox, or the
+  // Match, i.e. world then AI, in match mode).
+  constructor(world, hud, sfx, stepSim = () => world.step()) {
     super('game');
     this.world = world;
+    this.stepSim = stepSim;
     this.hud = hud;
     this.sfx = sfx;
     this.acc = 0;
@@ -88,7 +91,7 @@ export class GameScene extends Phaser.Scene {
     this.acc += dt;
     let steps = 0;
     while (this.acc >= SIM_DT && steps < MAX_STEPS_PER_FRAME) {
-      this.world.step();
+      this.stepSim();
       this.acc -= SIM_DT;
       steps++;
     }

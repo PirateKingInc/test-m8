@@ -38,12 +38,12 @@ test('early aggression: 2+ enemy combat units at the base before 5:00 switch the
   m.run(150);
   assert.equal([...m.world.ofKind('building')].filter((b) => b.team === 2 && b.type === 'spire').length, 0);
   const t0 = m.world.time;
-  spawn(m, 'striker', 3, AI_BASE.x - 380, AI_BASE.y);
+  spawn(m, 'bulwark', 3, AI_BASE.x - 380, AI_BASE.y); // sturdy: they outlast the reaction delay
   assert.ok(runUntil(m, () => reaction(m, 'early-aggression'), 20), 'defend mode triggered');
   const r = reaction(m, 'early-aggression');
   assert.ok(r.t - t0 >= DIFFICULTY.hard.reactionDelay, 'waited the reaction delay');
-  assert.ok(m.ai.defending.attackers.has('striker'));
-  assert.ok(share(m.ai.composition(), SCOUTING.counters.striker) >= SCOUTING.counterShare, 'production biased to Striker counters');
+  assert.ok(m.ai.defending.attackers.has('bulwark'));
+  assert.ok(share(m.ai.composition(), SCOUTING.counters.bulwark) >= SCOUTING.counterShare, 'production biased to Bulwark counters');
   assert.ok(runUntil(m, () => [...m.world.ofKind('building')].some((b) => b.team === 2 && b.type === 'spire'), 60), 'an AI with no Spire builds one while defending');
   // Clear the threat: defend mode ends after 20 s with no enemies near the base.
   for (const u of [...m.world.ofKind('unit')]) if (u.team === 1) u.hp = 0;
@@ -86,9 +86,9 @@ for (const massed of ['striker', 'sparker', 'bulwark', 'lancer']) {
     // Harness: clear the AI's (supply-capped) army so there is new production to observe.
     for (const u of m.ai.army()) m.world.get(u.id).hp = 0;
     m.step();
-    const before = { ...m.ai.stats.trained };
     spawn(m, massed, 6, AI_BASE.x - 420, AI_BASE.y - 200);
     assert.ok(runUntil(m, () => m.ai.counterFor === massed, 20), `countering ${massed}`);
+    const before = { ...m.ai.stats.trained }; // production from the reaction onward
     assert.match(reaction(m, 'massing').detail, new RegExp(`${massed} seen`));
     assert.ok(share(m.ai.composition(), SCOUTING.counters[massed]) >= SCOUTING.counterShare);
     m.run(60);

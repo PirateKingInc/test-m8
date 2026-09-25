@@ -13,12 +13,36 @@
     <span>Lumen <b id="lumen">0</b></span>
     <span>Units <b id="unit-count">0</b></span>
     <span>Supply <b id="supply">0/0</b></span>
-    <span class="dim">Phase 1 sandbox, no opponent · <kbd>`</kbd> dev panel</span>
+    <span id="opponent" class="dim">Sandbox, no opponent · <kbd>`</kbd> dev panel</span>
     <button id="fullscreen" title="Fullscreen with keyboard lock: lets Ctrl+1-9 reach the game in Chrome">Fullscreen</button>
     <span id="sound" class="dim"></span>
     <span id="fps" class="dim"></span>
   </div>
   <div id="toast"></div>
+  <div id="menu" hidden>
+    <div class="result-card menu-card">
+      <h1 class="brand-title">PRISM OUTPOST</h1>
+      <p class="dim">Destroy the enemy Command Core. Lose yours and you lose.</p>
+      <div class="menu-row">
+        <button data-difficulty="easy">Easy</button>
+        <button data-difficulty="normal">Normal</button>
+        <button data-difficulty="hard">Hard</button>
+      </div>
+      <p id="difficulty-note" class="dim"></p>
+      <label class="dim">AI strategy
+        <select id="strategy">
+          <option value="auto">Auto (by difficulty)</option>
+          <option value="rush">Rush</option>
+          <option value="boom">Economy-Boom</option>
+          <option value="turtle">Turtle-and-Tech</option>
+        </select>
+      </label>
+      <div class="result-actions">
+        <button id="start-match">Start match</button>
+        <button id="start-sandbox">Sandbox (no opponent)</button>
+      </div>
+    </div>
+  </div>
   <div id="result" hidden>
     <div class="result-card">
       <h1 id="result-title"></h1>

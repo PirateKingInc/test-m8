@@ -54,6 +54,11 @@ export class Hud {
     this.lastRefresh = 0;
   }
 
+  setOpponent(opp, doc = document) {
+    this.opponent = opp;
+    if (opp) doc.getElementById('opponent').textContent = `vs AI · ${opp.difficulty}`;
+  }
+
   // Victory / Defeat / Draw screen (SPEC.md Phase 2 "Win / lose").
   showResult(r, doc = document) {
     this.shownResult = true;
@@ -63,10 +68,11 @@ export class Hud {
     const mm = Math.floor(r.time / 60), ss = String(Math.floor(r.time % 60)).padStart(2, '0');
     doc.getElementById('result-title').textContent = title;
     doc.getElementById('result-title').className = title.toLowerCase();
-    doc.getElementById('result-detail').textContent = `${why} Match time ${mm}:${ss}.`;
+    const opp = this.opponent ? ` The AI (${this.opponent.difficulty}) played ${this.opponent.strategy}.` : '';
+    doc.getElementById('result-detail').textContent = `${why} Match time ${mm}:${ss}.${opp}`;
     doc.getElementById('result').hidden = false;
     doc.getElementById('play-again').onclick = () => location.reload();
-    doc.getElementById('change-difficulty').onclick = () => { location.search = ''; };
+    doc.getElementById('change-difficulty').onclick = () => { location.search = '?menu'; };
   }
 
   setMuted(muted) {
