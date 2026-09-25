@@ -115,6 +115,25 @@ intended winner must win **at least 80%** of them.
   - North-middle: (37,6), (41,6), (39,3) and (39,9)
   - South-middle: (37,51), (41,51), (39,48) and (39,54)
 
+### Side symmetry (Phase 3)
+
+The map is a mirror image, so every tie-break in the sim must be one too, or one
+side gets a hidden edge. Before Phase 3, Economy-Boom mirrors went 26–33% west.
+The rules now:
+
+- **A\* and nearest-tile searches.** A unit in the east half plans in a mirrored
+  frame: its start, goal and grid are flipped, the path is found with the
+  west-half code, and the result is flipped back. Tie-breaks between equal-cost
+  paths, the BFS "nearest reachable" order and the grid spiral order are
+  therefore mirror images across the center line.
+- **Spawn side.** A building without a rally point spawns units at its bottom
+  corner nearest the map center: bottom-right in the west (as in Phase 1),
+  bottom-left in the east.
+- **AI build placement** searches outward from a spot in mirror-image order.
+- `test/sidebias.test.js` asserts these rules. It also plays jitter-free mirror
+  matches of each strategy and requires them to stay an exact mirror image for
+  90 s.
+
 ## Movement & pathfinding
 
 - **Library:** PathFinding.js 0.4.18 (`PF.AStarFinder`) routes on the 80×60 tile
@@ -136,7 +155,9 @@ intended winner must win **at least 80%** of them.
   - Overlapping units push apart.
   - A moving unit shoves an idle one **sideways**, off its heading, rather than
     bulldozing it.
-  - Movers meeting roughly head-on each sidestep to their **right**.
+  - Movers meeting roughly head-on each sidestep **away from the side the
+    other is on** (so a mirrored pair sidesteps in mirror image). Only an exact
+    head-on tie falls back to both stepping right.
   - Moving-vs-moving collisions are **soft** (25% of the overlap is resolved per
     tick), so crowds flow through chokepoints. Idle units separate fully.
   - Drones on the gather loop pass through each other.

@@ -151,9 +151,9 @@ against each tier. The sim is deterministic, so CI reproduces these exact number
 
 | Player win rate | competent (Boom, Hard timing) | intermediate (Turtle, Easy timing) | novice (Rush, Easy timing) |
 |---|---|---|---|
-| vs **Easy** | 100% | 100% | 33% |
-| vs **Normal** | 83% | 83% | 0% |
-| vs **Hard** | 25% | 0% | 0% |
+| vs **Easy** | 100% | 100% | 42% |
+| vs **Normal** | 92% | 100% | 0% |
+| vs **Hard** | 58% | 0% | 0% |
 
 A competent player beats every tier; Hard is a real fight, and a novice loses to all three.
 

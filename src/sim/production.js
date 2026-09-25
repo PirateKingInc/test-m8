@@ -69,7 +69,12 @@ export function updateProduction(world, dt) {
     item.progress += dt;
     if (item.progress + 1e-9 < UNITS[item.unit].trainTime) continue;
     b.queue.shift();
-    const toward = b.rally || { x: b.x + b.pw, y: b.y + b.ph };
+    // Without a rally point, spawn toward the bottom corner on the map-centre side:
+    // bottom-right in the west half (the Phase 1 default), bottom-left in the east.
+    // A fixed bottom-right for everyone sent east-side units out the back of
+    // their base (see BALANCE.md, side bias).
+    const east = b.x >= world.width / 2;
+    const toward = b.rally || { x: b.x + (east ? -b.pw : b.pw), y: b.y + b.ph };
     const p = spawnPoint(world, b, toward.x, toward.y);
     const u = world.addUnit(item.unit, b.team, p.x, p.y);
     world.emit('trained', { id: u.id, unit: item.unit, team: b.team, building: b.id });
