@@ -365,14 +365,36 @@ It never makes the AI smarter, and it never cheats.
 
 | | Easy | Normal | Hard |
 |---|---|---|---|
-| Default strategy | Economy-Boom | Turtle-and-Tech | Rush |
+| Default strategy | Rush | Turtle-and-Tech | Economy-Boom |
 | Decision interval | 2.5 s | 1.2 s | 0.5 s |
 | Extra delay after each opening step | 6 s | 2 s | 0 s |
 | Reaction delay before a trigger takes effect | 25 s | 10 s | 3 s |
 | Worker factor (× worker target) | 0.7 | 0.9 | 1.0 |
 
+| Timing jitter (± share, seeded) | 30% | 20% | 10% |
+
+The default strategies follow their **measured** strength rather than a guess.
+The first mapping (Easy = Boom, Hard = Rush) was inverted: fairness runs showed
+Economy-Boom is the strongest script and Rush the weakest against a defending,
+reacting player.
+
 The start screen also lets the player pick the strategy explicitly (Auto uses
 the default above), or play the Phase 1 **Sandbox** with no opponent.
+
+### Fairness protocol (`test/fairness/`)
+
+- Three **player-side policies** run on the same engine as the AI, as team 1:
+  - **competent:** Economy-Boom with Hard timing and scouting reactions
+  - **intermediate:** Turtle-and-Tech with Easy timing
+  - **novice:** Rush with Easy timing
+- Each plays **12 fixed seeds** (1–12) against each tier with its default
+  strategy. The sim is deterministic, so CI reproduces the exact numbers.
+- Required:
+  - The competent policy wins **at least 75% on Easy, 50% on Normal and 10% on
+    Hard** (beatable at every tier).
+  - Every policy's win rate falls monotonically from Easy to Normal to Hard.
+  - The novice wins **at most 50%** at every tier, and Hard beats the
+    intermediate policy **at least 75%** of the time (not a pushover).
 
 ## Controls added in Phase 2
 
