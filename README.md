@@ -27,8 +27,21 @@ on score.
 | Normal | Rush | at most 2 Foundries; every 1.2 s, +2 s per step, reacts after 10 s, 90% of workers |
 | Hard | Economy-Boom | the strategy's own Foundry count; every 0.5 s, no step delay, reacts after 3 s, full economy |
 
-Difficulty never makes the AI smarter or richer, and it never changes the rules. It picks
-the script, how sharply that script is executed and how much production the AI runs.
+**Easy and Normal are handicapped, not just "playing worse".**
+- **The cap.** The Easy AI may run only **one Foundry**, and the Normal AI
+  **two**. Your own production is never capped. That is an economic handicap
+  on the AI: it can't turn its income into an army as fast as you can.
+- **Why.** It's the main thing that makes Easy easy. In Phase 2 the tiers
+  differed mostly in how strong a script each one played. Phase 3 balanced
+  the scripts, and timing alone turned out not to change results much.
+- **Hard is uncapped.** It plays Economy-Boom with its full Foundry count and
+  the sharpest timing.
+- **What difficulty never does.** It never gives the AI information or
+  resources, and it never changes the rules.
+- **Easy's default is Turtle-and-Tech.** It's a patient opponent: a player who
+  builds a basic defense survives it, which in the balance runs meant holding
+  out to the 30:00 limit in 33 of 40 games. But it punishes an early all-in
+  rush. See [BALANCE.md](BALANCE.md).
 
 ### How the AI works
 

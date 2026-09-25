@@ -191,9 +191,19 @@ measurement (12 fairness seeds each) showed why:
 - A lower worker factor can even *help*, because fewer Drones means an earlier
   army.
 
-So difficulty now also caps **production**. The AI may run at most 1 Foundry
-at Easy and 2 at Normal. That is an execution handicap: no rule changes and no
-extra resources. With the cap, the default strategies were re-picked from the
+So difficulty now also caps **production**: the AI may run at most 1 Foundry
+at Easy and 2 at Normal.
+
+**Plainly:** Easy and Normal are now partly an **economic handicap on the AI**,
+not just a weaker script.
+
+- **What the cap does.** The capped AI can't convert its income into an army
+  as fast as an uncapped player. The player is never capped.
+- **How Phase 2 differs.** Phase 2 described difficulty as purely which
+  script runs and how sharply it is timed. That is no longer the whole story:
+  at Easy and Normal the cap is the main source of the difference.
+- **What stays true.** The AI gets no extra resources or information, and the
+  rules are the same for both sides. With the cap, the default strategies were re-picked from the
 same measurement: Easy Turtle, Normal Rush, Hard Boom.
 
 - **A milder cap fails.** A cap of 2 at Easy and 3 at Normal was measured
@@ -203,6 +213,50 @@ same measurement: Easy Turtle, Normal Rush, Hard Boom.
   Foundries. That produces Turtle vs Rush at 99% (Easy) and 81% (Normal).
 - **The ranking.** Of the states measured, this is the only one that meets the
   hard requirement (the difficulty table) and has the best balance at Hard.
+
+### The novice's 0% at Easy: overtuned?
+
+The fairness harness shows the novice policy winning 0 of 12 at every tier. On
+100 seeds against Easy it wins **1 of 100**, with a median game of 9:20.
+
+That number is real, but it says more about **what the scripted novice does**
+than about how hard Easy is:
+
+- **The novice is an all-in Rush,** slower than the Easy AI.
+- **Easy's default AI is Turtle-and-Tech,** and Turtle vs Rush is the worst
+  matchup in the triangle. Under the Foundry cap it is 99% Turtle at Easy.
+  The novice is attacking into the one opponent built to stop exactly that.
+
+To check whether Easy is learnable by a real beginner, the `sentinel` script
+was run against each tier. It is a fixed, never-adapting script that builds a
+Depot, a Foundry, a Spire and a mixed army, and never attacks.
+
+| `sentinel` (defends, never attacks) vs | Player wins | Survived to 30:00 | Median length |
+|---|---|---|---|
+| Easy | 1 / 40 | **33 / 40** | 30:00 |
+| Normal | 0 / 40 | 0 / 40 | 7:10 |
+| Hard | 0 / 40 | 0 / 40 | 7:46 |
+
+**Judgment.**
+- **Survivable.** Easy is survivable by a player who does little more than
+  build a defense. Normal and Hard break the same defense in about 7 minutes.
+- **Winnable with basics.** The intermediate policy is a capped Turtle with
+  no attack plan beyond its script, and it wins 50% at Easy. The competent
+  policy wins 100%.
+- **Fair, not a coin flip.** So Easy is a fair fight for a weak but cautious
+  player. The novice's 0% is not a sign of an unwinnable tier.
+
+**The trade-off.**
+- **What Easy teaches.** Easy is forgiving to a beginner who turtles and
+  unforgiving to a beginner who rushes early. A new player's first instinct
+  of sending everything at the enemy base will usually fail against Easy's
+  Turtle.
+- **The accidental 30:00 loss.** A beginner who only defends can survive yet
+  still lose on score at 30:00. The sentinel won just 1 of those 33 games.
+- **Mitigations.** The first-run tutorial's last hint points the player at
+  the enemy Core. The start screen lets a player pick a different AI
+  strategy, for example Rush, which is weaker at Easy under the cap. No real
+  players were tested, so this is a judgment from scripted proxies.
 
 ### Tuned numbers
 
