@@ -20,3 +20,22 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser e2e tests
         run: npm run test:e2e
+
+  fairness:
+    # Phase 2 fairness proof: scripted player policies vs every difficulty tier
+    # (12 fixed seeds each, deterministic). Runs in parallel with the test job.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bot-vs-difficulty win rates
+        run: npm run test:fairness
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fairness-results
+          path: test-results/fairness.json
