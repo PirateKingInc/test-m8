@@ -1,8 +1,10 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
+import { drawTerrain, drawNode, drawBuilding, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
 import { Effects } from './effects.js';
 import { MatchStats } from './stats.js';
+import { bakeAll } from '../art/atlas.js';
+import { SpriteLayer } from './sprites.js';
 
 const Phaser = globalThis.Phaser;
 const PAN_SPEED = 900; // px/s
@@ -29,7 +31,10 @@ export class GameScene extends Phaser.Scene {
     drawTerrain(terrain, w);
     this.add.renderTexture(0, 0, w.width, w.height).setOrigin(0).draw(terrain);
     terrain.destroy();
-    this.gfx = this.add.graphics();
+    bakeAll(this.textures); // Phase 4: every sprite, drawn in code
+    this.sprites = new SpriteLayer(this);
+    this.underGfx = this.add.graphics().setDepth(2); // crystals and buildings (until their sprites land)
+    this.gfx = this.add.graphics().setDepth(4); // overlays above the sprites
     this.fxGfx = this.add.graphics().setDepth(5);
     this.effects = new Effects(this);
     this.stats = new MatchStats();
@@ -130,17 +135,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   render(alpha) {
-    const g = this.gfx, w = this.world;
+    const g = this.gfx, w = this.world, under = this.underGfx;
     g.clear();
-    for (const n of w.ofKind('node')) drawNode(g, n, w.time);
-    for (const b of w.ofKind('building')) drawBuilding(g, b, TEAM_COLORS[b.team]);
+    under.clear();
+    for (const n of w.ofKind('node')) drawNode(under, n, w.time);
+    for (const b of w.ofKind('building')) drawBuilding(under, b, TEAM_COLORS[b.team]);
+    this.sprites.sync(w, alpha);
     const sel = this.ui.selection;
     for (const b of w.ofKind('building')) if (sel.has(b.id)) drawSelection(g, b, b.x, b.y);
     for (const n of w.ofKind('node')) if (sel.has(n.id)) drawSelection(g, n, n.x, n.y);
     for (const u of w.ofKind('unit')) {
       const x = u.px + (u.x - u.px) * alpha, y = u.py + (u.y - u.py) * alpha;
       if (sel.has(u.id)) drawSelection(g, u, x, y);
-      drawUnit(g, u, x, y, TEAM_COLORS[u.team], w.time);
       if (u.order.type === 'build' && !u.path && w.tick % 4 < 2) { g.fillStyle(0xffe08a, 1); g.fillCircle(x + Math.cos(u.facing) * u.radius, y + Math.sin(u.facing) * u.radius, 2.5); }
       if (u.hp < u.maxHp || sel.has(u.id)) drawHealth(g, x, y - u.radius - 7, u.radius * 2, u.hp / u.maxHp);
     }
