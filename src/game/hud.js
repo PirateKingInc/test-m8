@@ -3,6 +3,8 @@ import { supplyOf } from '../sim/supply.js';
 import { UNITS } from '../data/units.js';
 import { BUILDINGS } from '../data/buildings.js';
 
+const GROUP_HOLD_MS = 500;
+
 const nameOf = (e) => (e.kind === 'unit' ? UNITS[e.type].name : e.kind === 'building' ? BUILDINGS[e.type].name : 'Lumen Crystal');
 
 // DOM HUD overlay. Reads world state; never mutates it.
@@ -26,9 +28,28 @@ export class Hud {
     this.groupsEl.addEventListener('click', (ev) => {
       const b = slot(ev);
       if (!b || !this.ui) return;
+      if (this.heldGroup) { this.heldGroup = false; return; } // the hold already assigned
       if (ev.shiftKey || ev.ctrlKey) this.ui.assignGroup(Number(b.dataset.group));
       else this.ui.recallGroup(Number(b.dataset.group));
     });
+    // Touch (Phase 4): press and hold a slot for 0.5 s to assign; a tap recalls.
+    this.groupsEl.addEventListener('pointerdown', (ev) => {
+      const b = slot(ev);
+      if (!b || ev.pointerType !== 'touch') return;
+      this.heldGroup = false;
+      b.classList.add('holding');
+      clearTimeout(this.holdTimer);
+      this.holdTimer = setTimeout(() => {
+        b.classList.remove('holding');
+        if (!this.ui) return;
+        this.heldGroup = true;
+        this.ui.assignGroup(Number(b.dataset.group));
+        b.classList.add('assigned');
+        setTimeout(() => b.classList.remove('assigned'), 500);
+      }, GROUP_HOLD_MS);
+    });
+    const endHold = (ev) => { clearTimeout(this.holdTimer); slot(ev)?.classList.remove('holding'); };
+    for (const t of ['pointerup', 'pointercancel', 'pointerleave']) this.groupsEl.addEventListener(t, endHold);
     this.groupsEl.addEventListener('contextmenu', (ev) => {
       const b = slot(ev);
       ev.preventDefault();
@@ -43,6 +64,8 @@ export class Hud {
       const btn = ev.target.closest('button[data-spawn]');
       if (btn && this.ui) { this.ui.devSpawn = btn.dataset.spawn; this.ui.attackMode = false; this.ui.placing = null; }
     });
+    // Tapping the under-attack alert jumps the camera there (Space on desktop).
+    this.el.toast.addEventListener('click', () => { if (this.el.toast.classList.contains('alert')) this.onAlertTap?.(); });
     this.el.selection.addEventListener('click', (ev) => {
       const slot = ev.target.closest('[data-cancel]');
       if (slot) this.ui?.action(`cancel-train:${slot.dataset.cancel}`);
@@ -136,10 +159,11 @@ export class Hud {
     this.el.sound.textContent = muted ? 'Sound off (M)' : 'Sound on (M)';
   }
 
-  toast(text) {
+  toast(text, { alert = false } = {}) {
     if (!text) return;
     const el = this.el.toast;
     el.textContent = text;
+    el.classList.toggle('alert', alert);
     el.classList.remove('show');
     void el.offsetWidth; // restart the fade animation
     el.classList.add('show');
@@ -171,8 +195,18 @@ export class Hud {
     if (bar && q) bar.style.width = `${Math.floor((q.progress / UNITS[q.unit].trainTime) * 100)}%`;
     const card = ui.commandCard();
     const sig = JSON.stringify(card);
-    if (sig !== this.cardSig) {
+    const actions = card.map((b) => b.action).join('|');
+    if (sig !== this.cardSig && actions === this.cardActions) {
+      // Same buttons, new state: patch them in place, so a finger that is
+      // already pressing a button never has it replaced mid-tap.
       this.cardSig = sig;
+      this.el.card.querySelectorAll('button[data-action]').forEach((el, i) => {
+        el.disabled = !card[i].enabled;
+        el.classList.toggle('active', !!card[i].active);
+      });
+    } else if (sig !== this.cardSig) {
+      this.cardSig = sig;
+      this.cardActions = actions;
       this.el.card.innerHTML = card.map((b) => `<button data-action="${b.action}" ${b.enabled ? '' : 'disabled'} class="${b.active ? 'active' : ''}" title="${tooltip(b)}">`
         + `<span class="key">${b.key}</span>${b.label}${b.cost != null ? `<span class="cost">${b.cost}</span>` : ''}</button>`).join('');
     }

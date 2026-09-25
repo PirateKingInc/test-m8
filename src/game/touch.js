@@ -8,7 +8,7 @@ import { PLAYER } from '../sim/constants.js';
 export const TOUCH = {
   tapSlop: 10, // screen px a finger may wander and still count as a tap
   pickSlop: 22, // screen px of extra pick radius for a fingertip
-  doubleTap: 0.35, // s between taps on the same unit type
+  doubleTap: 0.4, // s (wall clock) between taps on the same unit type
   minZoom: 0.5,
   maxZoom: 1.6,
 };
@@ -84,12 +84,14 @@ export class TouchInput {
       this.ui.boxArmed = false;
       if (g.moved) this.ui.selectBox(g.wx, g.wy, w.x, w.y, false);
     } else if (g.kind === 'tap') {
-      this.tap(w.x, w.y);
+      // When the finger actually lifted (the native event time), so a double-tap
+      // is judged by the player's timing, not by how fast frames are processed.
+      this.tap(w.x, w.y, (p.upTime || performance.now()) / 1000);
     }
   }
 
   // Everything a tap can mean, depending on what is armed.
-  tap(x, y) {
+  tap(x, y, now = performance.now() / 1000) {
     const ui = this.ui, cam = this.cam();
     const target = pickAt(ui.world, x, y, TOUCH.pickSlop / cam.zoom);
     // Aim orders at the picked entity's center, so the controller's own pick
@@ -103,9 +105,9 @@ export class TouchInput {
       return;
     }
     if (!target) { ui.selection.clear(); this.lastTap = null; return; }
-    const now = ui.world.time, prev = this.lastTap;
+    const prev = this.lastTap; // wall clock: a UI gesture, not game time
     this.lastTap = { type: target.type, team: target.team, at: now };
-    if (prev && target.kind === 'unit' && target.team === PLAYER && prev.type === target.type && prev.team === PLAYER && now - prev.at <= TOUCH.doubleTap + 0.05) {
+    if (prev && target.kind === 'unit' && target.team === PLAYER && prev.type === target.type && prev.team === PLAYER && now - prev.at <= TOUCH.doubleTap) {
       ui.selectAllOnScreen(target.type, cam.worldView);
       this.lastTap = null;
       return;

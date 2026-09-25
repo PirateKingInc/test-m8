@@ -25,9 +25,8 @@ test('double-tap a unit selects every own unit of that type on screen', async ({
   const { touch } = await openTouchGame(page);
   const ds = await drones(page);
   const s = await screenOf(page, ds[0].x, ds[0].y);
-  await touch.tap(s.x, s.y);
-  await touch.tap(s.x, s.y);
-  expect(await sel(page)).toEqual(ds.map((d) => d.id).sort((a, b) => a - b));
+  await touch.doubleTap(s.x, s.y);
+  await expect.poll(() => sel(page)).toEqual(ds.map((d) => d.id).sort((a, b) => a - b));
 });
 
 test('▭ Box then drag box-selects; without Box a one-finger drag pans instead', async ({ page }) => {
@@ -76,10 +75,17 @@ test('pinch zooms in and out within limits, keeping the pinch center steady; Bas
 
 const unit = (page, id) => page.evaluate((id) => { const u = window.__game.world.get(id); return u && { x: u.x, y: u.y, order: u.order.type, target: u.order.target, node: u.order.node }; }, id);
 
+// Tap an action-bar button and wait for its click to land (clicks follow touchend asynchronously).
+async function arm(page, touch, mode) {
+  await touch.tapEl(`[data-touch="${mode}"]`);
+  await expect.poll(() => page.evaluate(() => window.__game.scene.ui.armed)).toBe(mode);
+}
+
 async function selectDrones(page, touch) {
   const ds = await drones(page);
   const s = await screenOf(page, ds[0].x, ds[0].y);
-  await touch.tap(s.x, s.y); await touch.tap(s.x, s.y); // double-tap: all Drones
+  await touch.doubleTap(s.x, s.y); // all Drones
+  await expect.poll(() => sel(page)).toHaveLength(ds.length);
   return ds;
 }
 
@@ -99,9 +105,9 @@ test('➜ Order is disabled with nothing selected, arms with a banner and rings,
   expect((await unit(page, ds[0].id)).order).toBe('move');
   expect(await sel(page)).toHaveLength(4); // the selection is kept
   // Tapping the armed button again disarms without an order.
+  await arm(page, touch, 'order');
   await touch.tapEl('[data-touch="order"]');
-  await touch.tapEl('[data-touch="order"]');
-  expect(await page.evaluate(() => window.__game.scene.ui.armed)).toBe(null);
+  await expect.poll(() => page.evaluate(() => window.__game.scene.ui.armed)).toBe(null);
   expect(errors).toEqual([]);
 });
 
@@ -111,18 +117,18 @@ test('➜ Order on a crystal gathers; on an enemy attacks; ■ Stop stops', asyn
   const node = await page.evaluate(([x, y]) => { const ns = [...window.__game.world.ofKind('node')]; ns.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)); return { id: ns[0].id, x: ns[0].x, y: ns[0].y }; }, [ds[0].x, ds[0].y]);
   await centerOn(page, (node.x + ds[0].x) / 2, (node.y + ds[0].y) / 2);
   const ns = await screenOf(page, node.x, node.y);
-  await touch.tapEl('[data-touch="order"]');
+  await arm(page, touch, 'order');
   await touch.tap(ns.x, ns.y);
   expect((await unit(page, ds[0].id)).order).toBe('gather');
   expect((await unit(page, ds[0].id)).node).toBe(node.id);
   await touch.tapEl('[data-touch="stop"]');
-  expect((await unit(page, ds[0].id)).order).toBe('idle');
+  await expect.poll(async () => (await unit(page, ds[0].id)).order).toBe('idle');
   // An enemy (a stationary test target) next to our Drones: Order + tap it = attack.
   const enemy = await page.evaluate(([x, y]) => window.__game.world.issue({ type: 'devSpawn', unit: 'dummy', team: 2, x: x + 90, y }).id, [ds[0].x, ds[0].y]);
   const e = await unit(page, enemy);
   await centerOn(page, e.x, e.y);
   const es = await screenOf(page, e.x, e.y);
-  await touch.tapEl('[data-touch="order"]');
+  await arm(page, touch, 'order');
   await touch.tap(es.x + 6, es.y - 6);
   const d0 = await unit(page, ds[0].id);
   expect(d0.order).toBe('attack');
@@ -136,9 +142,9 @@ test('⚔ Attack-move arms and fires; ✕ Cancel disarms without an order', asyn
   await touch.tapEl('[data-touch="attack"]');
   await expect(page.locator('#armed-banner')).toContainText('attack-move');
   await touch.tapEl('[data-touch="cancel"]');
-  expect(await page.evaluate(() => window.__game.scene.ui.armed)).toBe(null);
+  await expect.poll(() => page.evaluate(() => window.__game.scene.ui.armed)).toBe(null);
   expect((await unit(page, ids[0])).order).not.toBe('attackMove');
-  await touch.tapEl('[data-touch="attack"]');
+  await arm(page, touch, 'attack');
   const u = await unit(page, ids[0]);
   const t = await screenOf(page, u.x + 150, u.y);
   await touch.tap(t.x, t.y);
@@ -152,7 +158,7 @@ test('Order with a Foundry selected sets its rally point', async ({ page }) => {
   const fs = await screenOf(page, f.x, f.y);
   await touch.tap(fs.x, fs.y);
   expect(await sel(page)).toEqual([f.id]);
-  await touch.tapEl('[data-touch="order"]');
+  await arm(page, touch, 'order');
   await expect(page.locator('#armed-banner')).toContainText('rally point');
   const r = await screenOf(page, f.x + 100, f.y - 60);
   await touch.tap(r.x, r.y);
@@ -166,8 +172,9 @@ test('touch placement: build button, drag the ghost, lift to place; ✕ cancels 
   await touch.tapEl('#command-card button[data-action="build:depot"]');
   await expect(page.locator('#armed-banner')).toContainText('Lumen Depot');
   await touch.tapEl('[data-touch="cancel"]');
-  expect(await page.evaluate(() => window.__game.scene.ui.placing)).toBe(null);
+  await expect.poll(() => page.evaluate(() => window.__game.scene.ui.placing)).toBe(null);
   await touch.tapEl('#command-card button[data-action="build:depot"]');
+  await expect.poll(() => page.evaluate(() => window.__game.scene.ui.placing)).toBe('depot'); // the tap's click has landed
   const from = await screenOf(page, ds[0].x + 40, ds[0].y - 100), to = await screenOf(page, ds[0].x + 60, ds[0].y - 110);
   await touch.drag(from.x, from.y, to.x, to.y);
   const site = await page.evaluate(() => [...window.__game.world.ofKind('building')].find((b) => b.team === 1 && b.type === 'depot'));
@@ -175,4 +182,51 @@ test('touch placement: build button, drag the ghost, lift to place; ✕ cancels 
   expect(site.built).toBe(false);
   expect(Math.hypot(site.x - (ds[0].x + 60), site.y - (ds[0].y - 110))).toBeLessThan(40);
   expect(await page.evaluate(() => window.__game.scene.ui.placing)).toBe(null);
+});
+
+// ---- P4-3: control groups and camera helpers --------------------------------
+
+test('group bar: press-and-hold assigns (with fill feedback), tap recalls, tap twice centers the camera', async ({ page }) => {
+  const { errors, touch } = await openTouchGame(page);
+  const ds = await drones(page);
+  await page.evaluate((ids) => window.__game.scene.ui.selection.set(ids), ds.slice(0, 2).map((d) => d.id));
+  const slot = await page.locator('#groups button[data-group="3"]').boundingBox();
+  const cx = slot.x + slot.width / 2, cy = slot.y + slot.height / 2;
+  // A short press is a tap: it recalls (group 3 is empty) and does not assign.
+  await touch.tap(cx, cy);
+  expect(await page.evaluate(() => (window.__game.scene.ui.groups.groups.get(3) || []).length)).toBe(0);
+  await touch.hold(cx, cy, 700);
+  expect(await page.evaluate(() => window.__game.scene.ui.groups.groups.get(3))).toEqual(ds.slice(0, 2).map((d) => d.id));
+  await expect(page.locator('#groups button[data-group="3"] span')).toHaveText('×2');
+  expect(await sel(page)).toHaveLength(2); // assigning keeps the selection
+  // Clear the selection, then tap the slot to recall it.
+  const empty = await screenOf(page, ds[0].x, ds[0].y - 110);
+  await touch.tap(empty.x, empty.y);
+  expect(await sel(page)).toEqual([]);
+  await touch.tap(cx, cy);
+  expect(await sel(page)).toEqual(ds.slice(0, 2).map((d) => d.id).sort((a, b) => a - b));
+  // Pan away, then tap twice quickly: the camera centers on the group.
+  await touch.drag(400, 200, 800, 200);
+  await touch.tap(cx, cy);
+  await touch.tap(cx, cy);
+  // The camera centers on the group (worldView's right/bottom are getters, so use width/height).
+  const view = await page.evaluate(() => { const v = window.__game.scene.cameras.main.worldView; return { x: v.x, y: v.y, w: v.width, h: v.height }; });
+  expect(ds[0].x > view.x && ds[0].x < view.x + view.w && ds[0].y > view.y && ds[0].y < view.y + view.h).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('tapping the under-attack alert jumps the camera to the attack', async ({ page }) => {
+  const { touch } = await openTouchGame(page, '?mode=match&difficulty=easy&seed=3');
+  const at = await page.evaluate(() => {
+    const w = window.__game.world;
+    const drone = [...w.ofKind('unit')].find((u) => u.team === 1);
+    const id = w.issue({ type: 'devSpawn', unit: 'sparker', team: 2, x: drone.x + 150, y: drone.y }).id;
+    w.issue({ type: 'attack', ids: [id], target: drone.id, team: 2 });
+    return { x: drone.x, y: drone.y };
+  });
+  await expect(page.locator('#toast')).toContainText('Tap here', { timeout: 10000 });
+  await page.evaluate(() => window.__game.scene.cameras.main.centerOn(2000, 1500));
+  await touch.tapEl('#toast');
+  const mid = await page.evaluate(() => window.__game.scene.cameras.main.midPoint);
+  expect(Math.hypot(mid.x - at.x, mid.y - at.y)).toBeLessThan(400);
 });

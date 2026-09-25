@@ -109,3 +109,10 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
 #armed-banner[hidden] { display: none; }
 #touchbar button.pulse { animation: pulse 1.2s ease-out 2; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(125, 255, 176, 0.8); } 100% { box-shadow: 0 0 0 14px rgba(125, 255, 176, 0); } }
+#toast.alert { pointer-events: auto; cursor: pointer; }
+#groups button { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+@keyframes holdfill { from { background-size: 100% 0%; } to { background-size: 100% 100%; } }
+#groups button.holding { background-image: linear-gradient(rgba(255, 210, 74, 0.55), rgba(255, 210, 74, 0.55));
+  background-repeat: no-repeat; background-position: bottom; animation: holdfill 0.5s linear forwards; }
+#groups button.assigned { border-color: #7dffb0; box-shadow: 0 0 10px #7dffb0; }
+body.touch #groups button { width: 40px; height: 40px; }
