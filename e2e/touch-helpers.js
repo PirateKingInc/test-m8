@@ -42,3 +42,8 @@ export function screenOf(page, x, y) {
     return { x: (x - cam.worldView.x) * cam.zoom, y: (y - cam.worldView.y) * cam.zoom };
   }, [x, y]);
 }
+
+// Test setup only: center the camera on a world point (a player would pan).
+export function centerOn(page, x, y) {
+  return page.evaluate(([x, y]) => { const c = window.__game.scene.cameras.main; c.centerOn(x, y); c.preRender(); }, [x, y]);
+}

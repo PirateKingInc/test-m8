@@ -189,7 +189,13 @@ export class InputController {
 
   action(name) {
     const [verb, arg] = name.split(':');
-    if (verb === 'build') this.placing = arg;
+    if (verb === 'build') {
+      this.placing = arg;
+      this.armed = null;
+      this.boxArmed = false;
+      // On touch there is no hover: start the ghost in the middle of the screen.
+      if (this.scene.touchMode) { const v = this.scene.cameras.main.midPoint; this.hover = { x: v.x, y: v.y }; }
+    }
     else if (verb === 'train' || verb === 'cancel-train') {
       const b = this.ownSelected('building')[0];
       if (!b) return;
