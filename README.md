@@ -225,8 +225,8 @@ The full numbers and method are in [BALANCE.md](BALANCE.md).
 - **Before Phase 3.** The strategies formed a strict hierarchy (Boom > Turtle
   > Rush), with every matchup 94–100% one way.
 - **Tuning.** Phase 3 tuned the strategy data to within about 40–60% in 17 of
-  18 matchups across the three tiers. The exception is **Turtle beating Rush
-  77% at Hard**: three strategies form a rock-paper-scissors triangle, and
+  18 matchups across the three tiers, before the difficulty cap below. The exception is **Turtle beating Rush
+  about 80% at Hard** (77% on seeds 1–100, 81% pooled over 200 seeds): three strategies form a rock-paper-scissors triangle, and
   every lever that fixed that cell broke another. At Hard, part of the
   difficulty comes from which matchup you draw. That is a documented design
   trade-off, and you can pick the AI's strategy on the start screen.

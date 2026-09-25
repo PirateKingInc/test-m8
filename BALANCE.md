@@ -101,11 +101,49 @@ final Phase 3 data (strategies, difficulty caps, expansion, targeting).
 | **Boom** | **45%** (36–55%) | 57% west | **49%** (39–59%) |
 | **Turtle** | **77%** (68–84%) | **51%** (41–61%) | 49% west |
 
+### Stability (verification e)
+
+These are sensitivity reruns, not tuning. Nothing was changed after them.
+
+1. **An identical rerun.** The same 100 seeds were run with 3 workers instead
+   of 4. All 1,800 results (winner, reason and end time) are **bit-identical**,
+   so the sim is deterministic regardless of how matches are spread across
+   processes. The fairness suite was also run twice with identical tables (see
+   the final report).
+2. **A disjoint seed set** (seeds 1001–1100, `balance/after-seeds1001.json`):
+
+   | Cell (row's win rate) | Seeds 1–100 | Seeds 1001–1100 | Pooled (200) |
+   |---|---|---|---|
+   | Easy: Rush vs Boom | 68% | 62% | **65%** (58–71) |
+   | Easy: Turtle vs Rush | 99% | 99% | **99%** (96–100) |
+   | Easy: Turtle vs Boom | 59% | 62% | **61%** (54–67) |
+   | Normal: Boom vs Rush | 51% | 63% | **57%** (50–64) |
+   | Normal: Turtle vs Rush | 81% | 89% | **85%** (79–89) |
+   | Normal: Turtle vs Boom | 49% | 62% | **56%** (49–62) |
+   | Hard: Rush vs Boom | 55% | 49% | **52%** (45–59) |
+   | Hard: Turtle vs Rush | 77% | 84% | **81%** (74–85) |
+   | Hard: Turtle vs Boom | 51% | 59% | **55%** (48–62) |
+   | Mirrors, west side | 46–57% | 46–54% | 49–54% |
+
+**What the reruns show:**
+- **No matchup flips.** No cell changes which strategy clearly wins, and the
+  side-bias result holds.
+- **The shifts lean one way.** Several cells moved by 6–13 points between the
+  two 100-seed sets, and **almost all toward Turtle**. Each shift is within
+  about 2 standard errors of the difference between two 100-game samples.
+  Taken together, they suggest Turtle is **somewhat stronger than seeds 1–100
+  alone show**.
+- **Which numbers to use.** The pooled 200-seed numbers are the best estimate.
+  With them, the Hard exception is Turtle vs Rush at **81%** (not 77%).
+- **How precise a single set is.** One 100-seed set pins a cell to about ±10
+  points, so an individual cell near the 60% line can land on either side of
+  it.
+
 ### Against the 60% ceiling
 
-| Cross cells within ~60% | Baseline | Best strategy balance (not shipped) | Shipped |
+| Cross cells within ~60% | Baseline | Best strategy balance (not shipped; seeds 1–100) | Shipped (pooled 200 seeds) |
 |---|---|---|---|
-| Easy | 0 of 3 | 3 of 3 (39–61%) | 1 of 3 |
+| Easy | 0 of 3 | 3 of 3 (39–61%) | 1 of 3 (Turtle vs Boom 61%) |
 | Normal | 0 of 3 | 3 of 3 (39–61%) | 2 of 3 |
 | Hard | 0 of 3 | 2 of 3 | 2 of 3 |
 | Worst cell | 100% | 77% (Hard, Turtle vs Rush) | 99% (Easy, Turtle vs Rush) |
@@ -113,7 +151,8 @@ final Phase 3 data (strategies, difficulty caps, expansion, targeting).
 The shipped data does **not** meet the 60% ceiling everywhere. Two things
 account for the gap:
 
-- **Hard (the rock-paper-scissors exception).** Turtle beats Rush 77% at Hard.
+- **Hard (the rock-paper-scissors exception).** Turtle beats Rush 77% at Hard
+  on seeds 1–100, and **81% pooled over 200 seeds**.
   This is accepted as a documented exception, not an open bug; see below.
 - **Easy and Normal.** These are a deliberate trade against the difficulty
   table; see "Balance vs difficulty".
