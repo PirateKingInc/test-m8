@@ -2,6 +2,7 @@ import { SIM_DT } from '../sim/constants.js';
 import { drawTerrain, drawNode, drawBuilding, drawUnit, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
 import { Effects } from './effects.js';
+import { MatchStats } from './stats.js';
 
 const Phaser = globalThis.Phaser;
 const PAN_SPEED = 900; // px/s
@@ -31,6 +32,8 @@ export class GameScene extends Phaser.Scene {
     this.gfx = this.add.graphics();
     this.fxGfx = this.add.graphics().setDepth(5);
     this.effects = new Effects(this);
+    this.stats = new MatchStats();
+    if (this.hud) this.hud.stats = this.stats;
 
     const cam = this.cameras.main;
     cam.setBounds(0, -28, w.width, w.height + 28 + 104); // leave room under the HUD bars
@@ -103,6 +106,7 @@ export class GameScene extends Phaser.Scene {
       const mid = this.cameras.main.midPoint;
       this.sfx?.handle(events, mid.x, mid.y);
       this.effects.add(events, this.world.time);
+      this.stats.add(events);
       for (const e of events) {
         if (e.type === 'rejected' && e.team === 1) this.hud?.toast(e.reason);
         // Under-attack cue: enemy fire hitting our units or buildings (throttled).

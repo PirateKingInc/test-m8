@@ -15,10 +15,16 @@
     <span>Supply <b id="supply">0/0</b></span>
     <span id="opponent" class="dim">Sandbox, no opponent · <kbd>`</kbd> dev panel</span>
     <button id="fullscreen" title="Fullscreen with keyboard lock: lets Ctrl+1-9 reach the game in Chrome">Fullscreen</button>
+    <button id="help" title="Show the tutorial hints again">Help</button>
     <span id="sound" class="dim"></span>
     <span id="fps" class="dim"></span>
   </div>
   <div id="toast"></div>
+  <div id="tutorial" class="hud" hidden>
+    <div class="tut-head"><span class="tut-title">TUTORIAL</span> <span id="tutorial-step" class="dim"></span>
+      <button id="tutorial-skip">Skip</button></div>
+    <p id="tutorial-text"></p>
+  </div>
   <div id="menu" hidden>
     <div class="result-card menu-card">
       <h1 class="brand-title">PRISM OUTPOST</h1>
@@ -37,6 +43,7 @@
           <option value="turtle">Turtle-and-Tech</option>
         </select>
       </label>
+      <p id="strategy-note" class="dim"></p>
       <div class="result-actions">
         <button id="start-match">Start match</button>
         <button id="start-sandbox">Sandbox (no opponent)</button>
@@ -47,6 +54,7 @@
     <div class="result-card">
       <h1 id="result-title"></h1>
       <p id="result-detail" class="dim"></p>
+      <table id="result-stats"></table>
       <div class="result-actions">
         <button id="play-again">Play again</button>
         <button id="change-difficulty">Change difficulty</button>

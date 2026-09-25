@@ -1,7 +1,7 @@
 // Render-only "juice": tracers, sparks, death bursts, floating text and screen
 // shake, spawned from sim events. Never touches sim state, so it can use
 // Math.random freely without affecting determinism.
-const LIFE = { tracer: 0.14, spark: 0.18, burst: 0.7, text: 0.9, ring: 0.5 };
+const LIFE = { tracer: 0.14, spark: 0.18, burst: 0.7, text: 0.9, ring: 0.5, flash: 0.12, shock: 1.1 };
 const TRACER_COLORS = { bolt: 0x9fe8ff, lance: 0xffc24a };
 const MAX_EFFECTS = 400;
 
@@ -19,6 +19,17 @@ export class Effects {
           this.push({ kind: 'tracer', t: now, x: e.x, y: e.y, tx: e.tx, ty: e.ty, color: TRACER_COLORS[e.attack], w: e.attack === 'lance' ? 4 : 2 });
         }
         this.push({ kind: 'spark', t: now, x: e.tx + (Math.random() - 0.5) * 10, y: e.ty + (Math.random() - 0.5) * 10, big: e.attack === 'crush' || e.attack === 'lance' });
+        this.push({ kind: 'flash', t: now, id: e.target }); // the target blinks white when hit
+      } else if (e.type === 'death' && e.unit === 'core') {
+        // A Command Core falling: shockwave, heavy debris, a long shake and a flash.
+        const parts = Array.from({ length: 60 }, () => {
+          const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 260;
+          return { vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 2 + Math.random() * 4 };
+        });
+        this.push({ kind: 'burst', t: now, x: e.x, y: e.y, parts, color: e.team === 1 ? 0x39d3c3 : 0xff7a45 });
+        this.push({ kind: 'shock', t: now, x: e.x, y: e.y });
+        this.scene.cameras.main.shake(700, 0.018);
+        this.scene.cameras.main.flash(350, 255, 230, 200);
       } else if (e.type === 'death') {
         const n = e.kind === 'building' ? 28 : 12;
         const parts = Array.from({ length: n }, () => {
@@ -28,6 +39,21 @@ export class Effects {
         this.push({ kind: 'burst', t: now, x: e.x, y: e.y, parts, color: e.team === 1 ? 0x39d3c3 : 0xff7a45 });
         this.push({ kind: 'ring', t: now, x: e.x, y: e.y, r: e.kind === 'building' ? 70 : 26 });
         if (e.kind === 'building') this.scene.cameras.main.shake(260, 0.008);
+      } else if (e.type === 'placed' && e.x !== undefined) {
+        // Construction starts: a dust puff around the footprint.
+        const parts = Array.from({ length: 14 }, () => {
+          const a = Math.random() * Math.PI * 2, v = 30 + Math.random() * 40;
+          return { vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 2 + Math.random() * 2 };
+        });
+        this.push({ kind: 'burst', t: now, x: e.x, y: e.y, parts, color: 0x8a7a66 });
+      } else if (e.type === 'depleted') {
+        // A crystal runs dry and shatters.
+        const parts = Array.from({ length: 16 }, () => {
+          const a = Math.random() * Math.PI * 2, v = 50 + Math.random() * 70;
+          return { vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 1.5 + Math.random() * 2.5 };
+        });
+        this.push({ kind: 'burst', t: now, x: e.x, y: e.y, parts, color: 0xb69bff });
+        this.floatText(e.x, e.y - 18, 'Depleted', '#b69bff');
       } else if (e.type === 'dropoff' && e.team === 1) {
         this.floatText(e.x, e.y - 14, `+${e.amount}`, '#c9b6ff');
       } else if (e.type === 'built') {
@@ -67,6 +93,17 @@ export class Effects {
           g.fillStyle(fx.color, k);
           g.fillCircle(fx.x + p.vx * age, fx.y + p.vy * age, p.r * k + 0.5);
         }
+      } else if (fx.kind === 'flash') {
+        const t = this.scene.world.get(fx.id);
+        if (!t) return false;
+        g.fillStyle(0xffffff, 0.55 * k);
+        if (t.kind === 'building') g.fillRect(t.x - t.pw / 2, t.y - t.ph / 2, t.pw, t.ph);
+        else g.fillCircle(t.x, t.y, t.radius + 1);
+      } else if (fx.kind === 'shock') {
+        g.lineStyle(6 * k + 1, 0xfff0d0, k);
+        g.strokeCircle(fx.x, fx.y, 40 + (1 - k) * 260);
+        g.lineStyle(3, 0xff9a60, k * 0.8);
+        g.strokeCircle(fx.x, fx.y, 20 + (1 - k) * 170);
       } else if (fx.kind === 'ring') {
         g.lineStyle(3, fx.color ?? 0xffe0b0, k);
         g.strokeCircle(fx.x, fx.y, fx.r * (1.2 - k * 0.7));

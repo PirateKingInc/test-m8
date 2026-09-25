@@ -20,7 +20,7 @@ function evictUnits(world, b) {
     u.x = u.px = c.x; u.y = u.py = c.y;
     if (u.order.type === 'move') clearPath(u), (u.order = { type: 'idle' });
   }
-  world.emit('placed', { id: b.id });
+  world.emit('placed', { id: b.id, team: b.team, x: b.x, y: b.y });
 }
 
 registerCommand('build', (world, cmd) => {
@@ -55,7 +55,7 @@ registerCommand('cancelBuild', (world, cmd) => {
   const refund = Math.floor(BUILDINGS[b.type].cost * CONSTRUCTION.cancelRefund);
   world.resources[b.team] += refund;
   world.removeEntity(b);
-  world.emit('cancelled', { id: b.id, refund });
+  world.emit('cancelled', { id: b.id, refund, team: b.team });
   return { ok: true, refund };
 });
 
