@@ -93,7 +93,10 @@ export class TouchInput {
   // Everything a tap can mean, depending on what is armed.
   tap(x, y, now = performance.now() / 1000) {
     const ui = this.ui, cam = this.cam();
-    const target = pickAt(ui.world, x, y, TOUCH.pickSlop / cam.zoom);
+    // A unit exactly under the finger, else the building or crystal under it,
+    // else the nearest unit within a fingertip. (A plain wide pick would let a
+    // Drone walking across a Foundry steal a tap aimed at the Foundry.)
+    const target = pickAt(ui.world, x, y) || pickAt(ui.world, x, y, TOUCH.pickSlop / cam.zoom);
     // Aim orders at the picked entity's center, so the controller's own pick
     // finds exactly what the fingertip covered.
     const at = target ? { x: target.x, y: target.y } : { x, y };

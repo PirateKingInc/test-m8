@@ -30,7 +30,7 @@ player. So orders go through an **explicit, always-visible action bar**.
 
 | Touch | Action | Desktop equivalent |
 |---|---|---|
-| **Tap** a unit or building | Select it. Taps use a finger-sized radius: 22 px on screen, so larger in world units when zoomed out. | Left-click |
+| **Tap** a unit or building | Select it. What is exactly under the finger wins first (a unit, then a building or crystal). Only then does a finger-sized radius (22 screen px) apply, so a Drone walking across a Foundry can't steal a tap aimed at the Foundry. | Left-click |
 | **Tap** empty ground | Deselect | Left-click |
 | **Double-tap** own unit | Select every own unit of that type that is on screen | – (new) |
 | **One-finger drag** | Pan the camera | Arrow keys, screen edge, middle-drag |
@@ -160,6 +160,18 @@ manual review.
    is for manual review. A test checks each baked texture is distinct from
    every other.
 5. **Bots.** The bot test and the full bot-vs-bot match still pass.
-6. **Mobile bot playthrough.** `e2e/mobile-playthrough.spec.js` plays a whole
-   match against the AI using nothing but touch events on screen positions,
-   to a declared result.
+6. **Mobile bot playthrough.** `e2e/mobile-playthrough.spec.js` runs as its own
+   CI job (`npm run test:mobile`). It plays a whole match against the Easy AI
+   using nothing but touch events on screen positions, and plays it to a
+   declared result.
+
+   The test asserts:
+   - the Depot, Foundry and Spire were placed by dragging
+   - an army of at least 10 units was trained
+   - armed Order and Attack orders were used in a fight
+   - a group was assigned by holding its slot
+   - a pinch was used
+
+   **It does not assert a win.** This simple scripted player loses to the Easy
+   AI, and the loss comes from its strategy and its action rate (each touch
+   action costs game time), not from a missing control.

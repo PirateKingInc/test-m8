@@ -4,9 +4,10 @@ A mini real-time strategy game that runs in the browser. Build a base, mine Lume
 crystals, train an army and **destroy the enemy Command Core** before the scripted
 AI opponent destroys yours. The Phase 1 **sandbox** (no opponent) is still available
 from the start screen. See [PROJECT.md](PROJECT.md) for the roadmap and scope; this
-is Phase 3 of 3 (balance & polish), and the project is complete.
+was built in three phases (sandbox, AI opponent, balance & polish), plus a Phase 4
+that added touch controls for phones and sprite art drawn in code.
 
-**Play:** https://piratekinginc.github.io/test-m8/ (desktop, mouse and keyboard)
+**Play:** https://piratekinginc.github.io/test-m8/ (desktop with mouse and keyboard, or a phone/tablet with touch; landscape recommended)
 
 It's a static site with no build step. [Phaser 3](https://phaser.io) and
 [PathFinding.js](https://github.com/qiao/PathFinding.js) load from the jsDelivr CDN.
@@ -93,6 +94,12 @@ on score.
 
 ## Controls
 
+The game takes mouse and keyboard, or touch; both work in the same build. On a
+touch device an **action bar** appears on the right of the screen (see
+[Touch controls](#touch-controls-phones-and-tablets)).
+
+### Mouse and keyboard
+
 | Input | Action |
 |---|---|
 | Left-click / Shift+click | Select, or add to / remove from the selection |
@@ -112,6 +119,53 @@ on score.
 | **M** | Mute or unmute |
 | **Help** (top bar) | Show the first-run tutorial hints again |
 | **\`** (backtick) | Dev panel. It spawns **test targets** and team-2 test units, for verification only. |
+
+### Touch controls (phones and tablets)
+
+Right-click has no touch equivalent, so orders are given with the **action
+bar**. Tap **➜ Order** (or **⚔ Attack**), then tap where to go.
+
+| Touch | Action |
+|---|---|
+| **Tap** a unit or building | Select it. Tap empty ground to deselect. |
+| **Double-tap** one of your units | Select every unit of that type on screen |
+| **Drag** with one finger | Look around (pan the camera) |
+| **Pinch** | Zoom in and out (0.5×–1.6×) |
+| **▭ Box**, then drag | Box-select your units |
+| **➜ Order**, then tap | The same smart order as a right-click: move there, attack the enemy you tapped, mine the crystal you tapped, help build a site, or set a Core/Foundry rally point |
+| **⚔ Attack**, then tap | Attack-move there |
+| **■ Stop** / **✕ Cancel** | Stop the selected units / disarm the armed order or a placement |
+| **⌂ Base** | Center the camera on your Command Core |
+| Build button (Drone selected), then touch and drag | The building's outline follows your finger; lift to place it |
+| Unit button (Core/Foundry selected) | Train that unit |
+| Group slot: **tap** / **press and hold** | Select that group (tap twice to jump to it) / save the selection as that group |
+| The under-attack alert | Tap it to jump there |
+| **Sound on/off**, **Fullscreen**, **Help** | Toggle sound, go fullscreen, replay the tutorial |
+
+**While an order is armed,** the button glows, a banner at the top says what
+the next tap will do, and the selected units pulse.
+
+**First visit.** The tutorial teaches whichever controls you're using, and the
+panel at the bottom always says what the selection can do.
+
+**Testing so far.** Touch was tested in Chrome's mobile emulation
+(Playwright), not on real phones. See the Phase 4 notes below.
+
+### Art
+
+Every sprite is drawn in code (`src/art/`) and baked into textures when the
+game starts; there are no image files. This covers:
+
+- the units, in each team's colour
+- the buildings, in each construction state
+- the crystals and the terrain
+
+**Reference sheet.** It shows everything side by side at the in-game zoom
+levels:
+
+- **Saved image:** [`docs/reference-sheet.png`](docs/reference-sheet.png)
+- **Live page:** https://piratekinginc.github.io/test-m8/sheet.html
+- **Regenerate it:** `node tools/reference-sheet.mjs`
 
 ## Roster
 
@@ -151,8 +205,11 @@ npm run serve        # http://localhost:8080 (or open index.html via any static 
 
 ```bash
 npm test             # headless sim tests (node --test)
-npm run test:e2e     # Playwright browser tests (npx playwright install chromium first)
+npm run test:e2e     # Playwright browser tests, desktop and mobile emulation (npx playwright install chromium first)
 ```
+
+Add `?speed=N` to the URL to run the game N× faster (up to 16×). The mobile
+playthrough test uses it.
 
 ```bash
 npm run test:fairness  # bot-vs-difficulty win rates (about 2.5 min, 108 full matches)
@@ -188,6 +245,10 @@ live URL until it serves that exact commit.
 | `test/expansion.test.js` | Each strategy expands under its trigger with Drones and a defense; it never builds in a field the enemy holds; waves find and destroy a relocated, scouted Core |
 | `test/balance.test.js` | The batch runner's pieces, plus one full bot-vs-bot match played to a result |
 | `test/audio.test.js`, `test/stats.test.js`, `test/tutorial.test.js`, `e2e/polish.spec.js` | Every sim event has a sound; the result-screen stats add up; the first-run tutorial advances, persists, and works with storage blocked |
+| `test/freeze.test.js` | Phase 4 freeze: `src/data`, `src/sim` and `src/ai` are byte-identical to Phase 3, and fixed-seed games (positions, HP, orders) play out exactly as before |
+| `e2e/touch.spec.js` | Real touch events in mobile emulation: tap, double-tap, Box, pan, pinch, Order (move, attack, gather, rally), Attack-move, Stop, Cancel, placement, group hold/tap, the alert tap, and the whole touch tutorial |
+| `e2e/art.spec.js` | Unit silhouettes differ from each other at 0.5× zoom. Every building differs across its construction states, and Depot and Foundry differ in every state. Team colours are present and not mixed. The reference sheet renders. |
+| `e2e/mobile-playthrough.spec.js` (`npm run test:mobile`, its own CI job) | A whole match against the Easy AI played with touch events only, to its end. It uses every touch control: placement, training, rally, Box plus group hold, pinch, Order and Attack. This simple scripted player usually *loses*; the test proves touch can play a whole game, not that it wins one. |
 | `e2e/groups.spec.js` | Control groups without the browser's reserved Ctrl+1–8: Shift+digit, the HUD group bar, and Fullscreen with Keyboard Lock |
 
 ### Fairness: can the AI be beaten?

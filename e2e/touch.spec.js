@@ -297,3 +297,23 @@ test('first-run tutorial on touch: every hint teaches touch, and touch alone com
   await expect(page.locator('#tutorial-text')).toContainText('pinch to zoom');
   expect(errors).toEqual([]);
 });
+
+test('a tap on a building selects the building even when a unit stands over its edge', async ({ page }) => {
+  const { touch } = await openTouchGame(page);
+  const { f, d } = await page.evaluate(() => {
+    const w = window.__game.world;
+    const f = w.addBuilding('foundry', 1, 14, 22, { built: true });
+    const d = w.issue({ type: 'devSpawn', unit: 'drone', team: 1, x: f.x + 30, y: f.y + 36 }).id;
+    return { f: { id: f.id, x: f.x, y: f.y }, d };
+  });
+  await centerOn(page, f.x, f.y);
+  // The fingertip lands on the Foundry, ~22 px from the Drone: the Foundry wins.
+  const s = await screenOf(page, f.x + 14, f.y + 18);
+  await touch.tap(s.x, s.y);
+  expect(await sel(page)).toEqual([f.id]);
+  // A tap right on the Drone still selects the Drone.
+  const u = await page.evaluate((id) => { const x = window.__game.world.get(id); return { x: x.x, y: x.y }; }, d);
+  const us = await screenOf(page, u.x, u.y);
+  await touch.tap(us.x, us.y);
+  expect(await sel(page)).toEqual([d]);
+});

@@ -21,6 +21,23 @@ jobs:
       - name: Browser e2e tests
         run: npm run test:e2e
 
+  mobile-playthrough:
+    # Phase 4 verification (f): a whole match against the AI played with touch
+    # events only, in mobile emulation. Runs in parallel with the other jobs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Touch-only full match
+        run: npm run test:mobile
+
   fairness:
     # Phase 2 fairness proof: scripted player policies vs every difficulty tier
     # (12 fixed seeds each, deterministic). Runs in parallel with the test job.
