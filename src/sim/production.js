@@ -2,6 +2,7 @@
 import { BUILDINGS, PRODUCTION } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
 import { registerCommand } from './orders.js';
+import { supplyOf } from './supply.js';
 
 function ownBuilding(world, cmd) {
   const b = world.get(cmd.building);
@@ -14,6 +15,7 @@ registerCommand('train', (world, cmd) => {
   if (b.queue.length >= PRODUCTION.maxQueue) return { ok: false, reason: 'Queue is full' };
   const cost = UNITS[cmd.unit].cost;
   if (world.resources[b.team] < cost) return { ok: false, reason: 'Not enough Lumen' };
+  if (supplyOf(world, b.team).free < UNITS[cmd.unit].supply) return { ok: false, reason: 'Not enough supply: build a Lumen Depot' };
   world.resources[b.team] -= cost;
   b.queue.push({ unit: cmd.unit, progress: 0 });
   return { ok: true };

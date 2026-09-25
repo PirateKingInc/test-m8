@@ -4,6 +4,7 @@ import { PLAYER } from '../sim/constants.js';
 import { BUILDINGS, BUILD_ORDER, PRODUCTION } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
 import { canPlace } from '../sim/construction.js';
+import { supplyOf } from '../sim/supply.js';
 
 const DRAG_THRESHOLD = 6; // px on screen
 const DOUBLE_TAP = 0.35; // s
@@ -124,7 +125,7 @@ export class InputController {
     if (trainer && BUILDINGS[trainer.type].trains.length) {
       return BUILDINGS[trainer.type].trains.map((unit, i) => ({
         key: 'QWER'[i], label: UNITS[unit].name, cost: UNITS[unit].cost, action: `train:${unit}`,
-        enabled: lumen >= UNITS[unit].cost && trainer.queue.length < PRODUCTION.maxQueue,
+        enabled: lumen >= UNITS[unit].cost && trainer.queue.length < PRODUCTION.maxQueue && supplyOf(this.world, PLAYER).free >= UNITS[unit].supply,
       }));
     }
     if (sel.length === 1 && sel[0].kind === 'building' && !sel[0].built) {

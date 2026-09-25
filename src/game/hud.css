@@ -54,3 +54,4 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
 #groups button:hover { border-color: var(--accent); opacity: 1; }
 #fullscreen { background: transparent; color: var(--dim); border: 1px solid var(--edge); border-radius: 3px; font-size: 11px;
   cursor: pointer; pointer-events: auto; }
+#supply.blocked { color: #ff7a45; }

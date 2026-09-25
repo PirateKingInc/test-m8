@@ -68,6 +68,9 @@ test('queue holds at most 5 items; buildings only train their own roster', () =>
 test('trained units spawn on distinct free tiles even when the exit is crowded, then go to the rally point', () => {
   const { w, core } = base();
   w.resources[1] = 5000;
+  // Phase 2 supply: two Depots (+16) so the 20-unit crowd plus new Drones fit the cap.
+  w.addBuilding('depot', 1, 20, 12, { built: true });
+  w.addBuilding('depot', 1, 24, 12, { built: true });
   // Crowd every tile around the core.
   for (let ty = 3; ty <= 8; ty++) for (let tx = 3; tx <= 8; tx++) {
     if (w.grid.isWalkable(tx, ty)) w.addUnit('striker', 1, tileCenter(tx, ty).x, tileCenter(tx, ty).y);

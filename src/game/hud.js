@@ -1,4 +1,5 @@
 import { PLAYER } from '../sim/constants.js';
+import { supplyOf } from '../sim/supply.js';
 import { UNITS } from '../data/units.js';
 import { BUILDINGS } from '../data/buildings.js';
 
@@ -10,6 +11,7 @@ export class Hud {
     this.el = {
       lumen: doc.getElementById('lumen'),
       units: doc.getElementById('unit-count'),
+      supply: doc.getElementById('supply'),
       fps: doc.getElementById('fps'),
       selection: doc.getElementById('selection-panel'),
       card: doc.getElementById('command-card'),
@@ -73,6 +75,9 @@ export class Hud {
     for (const u of world.ofKind('unit')) if (u.team === PLAYER) units++;
     this.el.lumen.textContent = Math.floor(world.resources[PLAYER]);
     this.el.units.textContent = units;
+    const sup = supplyOf(world, PLAYER);
+    this.el.supply.textContent = `${sup.used}/${sup.cap}`;
+    this.el.supply.classList.toggle('blocked', sup.free <= 0);
     this.el.fps.textContent = `${Math.round(fps)} fps`;
     if (!ui) return;
     this.ui = ui;
