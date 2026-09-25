@@ -48,3 +48,4 @@ Phase 3.
 - [P3] Building rotation/footprint variety.
 - [P3] Smarter formation slot assignment when a move target straddles an obstacle.
 - [P3] Rendering: batch unit drawing into textures, or use sprite atlases generated at boot.
+- [P3] Polish items from issue #59 that were not built: audio cues for supply-blocked, scout reports and wave-launched (the under-attack alarm exists); an on-building construction-progress ring and production-complete flash; a rally-point marker; an on-building queue progress bar (the HUD queue has one).
