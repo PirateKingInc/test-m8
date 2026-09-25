@@ -251,7 +251,7 @@ export class AiEngine {
     if (this.runExpansion()) return;
     // 3. More production when Lumen piles up, then strategy-specific structures.
     const foundries = this.mine('building', 'foundry').length;
-    if (!this.pendingBuild && foundries < (s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
+    if (!this.pendingBuild && foundries < this.foundryCap(s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
       if (this.tryBuild('foundry', foundries ? 'foundry2' : 'foundry')) return;
     }
     for (const st of s.structures || []) {
@@ -267,12 +267,16 @@ export class AiEngine {
     if (unit) this.tryTrain(unit, ARMY.maxFoundryQueue);
   }
 
+  // Difficulty caps how much production the AI runs (Phase 3): an easier tier
+  // simply builds fewer Foundries. It never changes the rules or gives resources.
+  foundryCap(n) { return Math.min(n, this.d.maxFoundries ?? Infinity); }
+
   // A strategy structure rule: { build, spots, max, minDrones?, armyPer? }. Wanted
   // while we have fewer than `max`, enough Drones, and (armyPer) at least
   // armyPer combat units per existing building of that type.
   structureWanted(st) {
     const have = this.mine('building', st.build).length;
-    if (have >= st.max) return false;
+    if (have >= (st.build === 'foundry' ? this.foundryCap(st.max) : st.max)) return false;
     if (st.minDrones && this.mine('unit', 'drone').length < st.minDrones) return false;
     if (st.armyPer && this.army().length < st.armyPer * have) return false;
     return this.lumen() >= BUILDINGS[st.build].cost;
@@ -622,12 +626,17 @@ export class AiEngine {
     }
     // A wave leaves when the army at home reaches the unit-count threshold, or
     // (for strategies that build up) the army-supply threshold.
-    const need = this.stats.waves === 0 ? s.firstWave : s.wave;
-    const needSupply = this.stats.waves === 0 ? s.firstWaveSupply : s.waveSupply;
+    // Each wave's size threshold varies by +/- waveJitter (the engine's own
+    // seeded RNG), so wave timing isn't one fixed, exploitable moment.
+    this.waveFactor ??= 1 + (s.waveJitter || 0) * (2 * this.rng.next() - 1);
+    const need = (this.stats.waves === 0 ? s.firstWave : s.wave) * this.waveFactor;
+    const baseSupply = this.stats.waves === 0 ? s.firstWaveSupply : s.waveSupply;
+    const needSupply = baseSupply == null ? null : baseSupply * this.waveFactor;
     const homeSupply = home.reduce((n, u) => n + UNITS[u.type].supply, 0);
     const ready = needSupply != null ? homeSupply >= needSupply : home.length >= need;
     if (!threats.length && ready) {
       this.mode = 'attack';
+      this.waveFactor = null; // the next wave draws a new threshold
       this.waveSize = home.length;
       this.stats.waves++;
       this.note(`wave ${this.stats.waves}: ${home.length} units attack`);

@@ -381,23 +381,38 @@ Counter picks (from the PROJECT.md counter table):
 
 ### Difficulty (`src/data/difficulty.js`)
 
-Difficulty controls *which strategy runs* and *how well-timed the script is*.
-It never makes the AI smarter, and it never cheats.
+Difficulty controls *which strategy runs*, *how well-timed the script is* and,
+since Phase 3, *how much production it runs*. It never makes the AI smarter,
+never changes the rules, and never gives it resources.
 
 | | Easy | Normal | Hard |
 |---|---|---|---|
-| Default strategy | Rush | Turtle-and-Tech | Economy-Boom |
+| Default strategy | Turtle-and-Tech | Rush | Economy-Boom |
 | Decision interval | 2.5 s | 1.2 s | 0.5 s |
-| Extra delay after each opening step | 6 s | 2 s | 0 s |
+| Extra delay after each opening step | 2 s | 2 s | 0 s |
 | Reaction delay before a trigger takes effect | 25 s | 10 s | 3 s |
 | Worker factor (× worker target) | 0.7 | 0.9 | 1.0 |
-
+| Foundry cap (Phase 3) | 1 | 2 | strategy's own |
 | Timing jitter (± share, seeded) | 30% | 20% | 10% |
 
-The default strategies follow their **measured** strength rather than a guess.
-The first mapping (Easy = Boom, Hard = Rush) was inverted: fairness runs showed
-Economy-Boom is the strongest script and Rush the weakest against a defending,
-reacting player.
+**Phase 3 changes.**
+- **Why the defaults moved.** Phase 2 picked the default strategies by
+  measured strength: Easy = Rush, the weakest script, and Hard = Boom, the
+  strongest. Phase 3 balanced the scripts against each other, which removed
+  that source of difficulty.
+- **Timing alone doesn't order the tiers.** Measured against the fairness
+  policies, the timing knobs barely affect outcomes. A lower worker factor
+  can even help, because fewer Drones means an earlier army.
+- **The Foundry cap does.** A tier now handicaps the AI by capping how many
+  Foundries it runs. That is an execution limit, not a rule change. Plainly,
+  Easy and Normal are now partly an **economic handicap on the AI**: it can't
+  convert income into an army as fast as the uncapped player. They are not
+  just a weaker script.
+- **New defaults.** They were re-picked from a policy × tier × strategy
+  measurement: Easy = Turtle (a passive opponent a beginner can learn
+  against), Normal = Rush, and Hard = Boom.
+- **Easy step delay** went from 6 s to 2 s for strategy balance. At 6 s it
+  punished long openings, such as Boom's 12 steps, far more than short ones.
 
 The start screen also lets the player pick the strategy explicitly (Auto uses
 the default above), or play the Phase 1 **Sandbox** with no opponent.

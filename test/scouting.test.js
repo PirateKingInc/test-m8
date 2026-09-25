@@ -34,7 +34,7 @@ const runUntil = (m, pred, max) => { const t0 = m.world.time; while (!pred() && 
 const share = (weights, types) => types.reduce((a, t) => a + (weights[t] || 0), 0) / Object.values(weights).reduce((a, b) => a + b, 0);
 
 test('early aggression: 2+ enemy combat units at the base before 5:00 switch the AI to defense', () => {
-  const m = match('boom', 'hard'); // Boom owns no Spire, so the Spire reaction is observable
+  const m = match('rush', 'hard'); // Rush owns no Spire, so the Spire reaction is observable
   m.run(150);
   assert.equal([...m.world.ofKind('building')].filter((b) => b.team === 2 && b.type === 'spire').length, 0);
   const t0 = m.world.time;

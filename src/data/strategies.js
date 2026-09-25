@@ -64,22 +64,23 @@ export const EXPANSION = {
 export const STRATEGIES = {
   rush: {
     name: 'Rush',
-    description: 'Fast aggression: minimal economy, cheap Strikers and Sparkers, early continuous attacks.',
+    description: 'Aggression: a lean economy feeding many Foundries of Strikers and Sparkers (plus a few Lancers), big early waves and constant reinforcements.',
     opening: [
       { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { build: 'foundry' },
       { train: 'striker' }, { train: 'striker' }, { train: 'drone' },
     ],
-    workerTarget: 8,
+    workerTarget: 10,
     supplyBuffer: 2,
     depotSpots: ['depot', 'depot2', 'depot3'],
-    composition: { striker: 3, sparker: 1 },
-    maxFoundries: 3, // extra Foundries whenever Lumen floats above floatLumen
-    floatLumen: 250,
-    firstWave: 6,
-    wave: 5,
+    composition: { striker: 2, sparker: 2, lancer: 0.5 },
+    maxFoundries: 5, // extra Foundries whenever Lumen floats above floatLumen
+    floatLumen: 200,
+    firstWave: 14,
+    wave: 10,
+    waveJitter: 0.3, // each wave's size threshold varies +/-30% (seeded)
     retreatBelow: null, // never retreats
     reinforce: true,
-    reinforceMin: 3, // reinforcements leave home in groups of at least this many
+    reinforceMin: 4, // reinforcements leave home in groups of at least this many
     scoutAt: 30,
     // Expands late, or once the home field runs low; guards it with units.
     expand: { after: 420, minDrones: 6, orHomeBelow: 0.35, drones: 4, spires: 0, guards: 3 },
@@ -101,25 +102,29 @@ export const STRATEGIES = {
 
   boom: {
     name: 'Economy-Boom',
-    description: 'Extra Depots and gathering early, delayed military, then out-produces late.',
+    description: 'Greed: ten Drones and two Depots before its first Foundry, expands early, then attacks with a big mixed army and falls back when a wave breaks.',
     opening: [
       { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { train: 'drone' },
-      { build: 'depot', spot: 'depot2' }, { train: 'drone' }, { train: 'drone' }, { build: 'foundry' }, { train: 'drone' },
+      { build: 'depot', spot: 'depot2' }, { train: 'drone' }, { train: 'drone' }, { train: 'drone' }, { train: 'drone' },
+      { build: 'foundry' }, { train: 'drone' },
     ],
     workerTarget: 16,
     supplyBuffer: 3,
     depotSpots: ['depot', 'depot2', 'depot3', 'depot4', 'depot5'],
     structures: [
-      { build: 'foundry', spots: ['foundry', 'foundry2', 'foundry3'], max: 2, minDrones: 12 },
+      { build: 'foundry', spots: ['foundry', 'foundry2', 'foundry3'], max: 2, minDrones: 15 },
       { build: 'depot', spots: ['depot', 'depot2', 'depot3', 'depot4'], max: 3, minDrones: 14 },
     ],
     composition: { striker: 2, sparker: 2, bulwark: 1, lancer: 1 },
     maxFoundries: 3, // late game: a third Foundry once Lumen floats
     floatLumen: 600,
-    firstWave: 14,
-    wave: 10,
+    // Builds up by army supply, like Turtle, but attacks sooner.
+    firstWaveSupply: 34,
+    waveSupply: 26,
+    waveJitter: 0.3,
     retreatBelow: 0.35,
     reinforce: false,
+    defendSpires: 0, // greedy: answers a rush with units, not Spires
     scoutAt: 60,
     // Greedy: expands as soon as the home economy is saturated, with a Spire and two guards.
     expand: { after: 240, minDrones: 13, drones: 6, spires: 1, guards: 2 },
@@ -127,7 +132,7 @@ export const STRATEGIES = {
 
   turtle: {
     name: 'Turtle-and-Tech',
-    description: 'Heavy defenses first, builds up behind Sentry Spires, then attacks late with Bulwarks and Lancers.',
+    description: 'Defense: Sentry Spires on its front, a Sparker/Bulwark/Lancer army, fortified expansions, and a heavy push once it has built up.',
     opening: [
       { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { build: 'foundry' },
       { build: 'spire' }, { train: 'drone' }, { build: 'spire', spot: 'spire2' },
@@ -136,15 +141,18 @@ export const STRATEGIES = {
     supplyBuffer: 3,
     depotSpots: ['depot', 'depot2', 'depot3', 'depot4', 'depot5'],
     structures: [
-      // Spires on the base front (toward the enemy), one more per 2 army units, up to 4.
+      // A second Foundry once the economy is up, then Spires on the base front
+      // (toward the enemy), one more per 2 army units, up to 4.
+      { build: 'foundry', spots: ['foundry', 'foundry2', 'foundry3'], max: 2, minDrones: 8 },
       { build: 'spire', spots: ['spire', 'spire2', 'spire3', 'spire4'], max: 4, armyPer: 2 },
     ],
-    composition: { bulwark: 3, lancer: 2, sparker: 2 },
-    maxFoundries: 2,
+    composition: { sparker: 2, bulwark: 2, lancer: 1 },
+    maxFoundries: 3,
     floatLumen: 400,
     // Builds up by army *supply* (heavy units cost 2-3), not unit count.
-    firstWaveSupply: 36,
+    firstWaveSupply: 30,
     waveSupply: 30,
+    waveJitter: 0.3,
     retreatBelow: 0.3,
     reinforce: false,
     scoutAt: 90,

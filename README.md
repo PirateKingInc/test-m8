@@ -4,7 +4,7 @@ A mini real-time strategy game that runs in the browser. Build a base, mine Lume
 crystals, train an army and **destroy the enemy Command Core** before the scripted
 AI opponent destroys yours. The Phase 1 **sandbox** (no opponent) is still available
 from the start screen. See [PROJECT.md](PROJECT.md) for the roadmap and scope; this
-is Phase 2 of 3.
+is Phase 3 of 3 (balance & polish), and the project is complete.
 
 **Play:** https://piratekinginc.github.io/test-m8/ (desktop, mouse and keyboard)
 
@@ -21,14 +21,27 @@ cap**, so the AI gets no special treatment. You win by destroying the enemy's la
 completed **Command Core**, and you lose if yours falls. At **30:00** the match ends
 on score.
 
-| Difficulty | Default AI strategy | Script timing |
+| Difficulty | Default AI strategy | Execution |
 |---|---|---|
-| Easy | Rush | decides every 2.5 s, +6 s after each opening step, reacts to scouting after 25 s, 70% of its worker target |
-| Normal | Turtle-and-Tech | every 1.2 s, +2 s per step, reacts after 10 s, 90% of workers |
-| Hard | Economy-Boom | every 0.5 s, no step delay, reacts after 3 s, full economy |
+| Easy | Turtle-and-Tech | at most 1 Foundry; decides every 2.5 s, +2 s after each opening step, reacts to scouting after 25 s, 70% of its worker target |
+| Normal | Rush | at most 2 Foundries; every 1.2 s, +2 s per step, reacts after 10 s, 90% of workers |
+| Hard | Economy-Boom | the strategy's own Foundry count; every 0.5 s, no step delay, reacts after 3 s, full economy |
 
-Difficulty never makes the AI smarter or richer. It picks the script and how
-sharply that script is executed.
+**Easy and Normal are handicapped, not just "playing worse".**
+- **The cap.** The Easy AI may run only **one Foundry**, and the Normal AI
+  **two**. Your own production is never capped. That is an economic handicap
+  on the AI: it can't turn its income into an army as fast as you can.
+- **Why.** It's the main thing that makes Easy easy. In Phase 2 the tiers
+  differed mostly in how strong a script each one played. Phase 3 balanced
+  the scripts, and timing alone turned out not to change results much.
+- **Hard is uncapped.** It plays Economy-Boom with its full Foundry count and
+  the sharpest timing.
+- **What difficulty never does.** It never gives the AI information or
+  resources, and it never changes the rules.
+- **Easy's default is Turtle-and-Tech.** It's a patient opponent: a player who
+  builds a basic defense survives it, which in the balance runs meant holding
+  out to the 30:00 limit in 33 of 40 games. But it punishes an early all-in
+  rush. See [BALANCE.md](BALANCE.md).
 
 ### How the AI works
 
@@ -40,16 +53,38 @@ sharply that script is executed.
   run whole matches with the AI holding a recursively *read-only* view of the
   game, which fails on any direct state change.
 - **Strategies.** Each is a scripted sequence of build and train priorities with
-  simple branches. They live as data in `src/data/strategies.js`.
-  - **Rush:** a small economy, up to three Foundries of Strikers and Sparkers,
-    early continuous waves, and reinforcements in groups.
-  - **Economy-Boom:** extra Depots and Drones first, a second and then third
-    Foundry, a mixed army, a big first wave and retreats.
-  - **Turtle-and-Tech:** Sentry Spires on the base front (up to four), a
-    Bulwark/Lancer army, and it builds up to 36 army supply before attacking.
+  simple branches. They live as data in `src/data/strategies.js`, with Phase 3's
+  tuned numbers.
+  - **Rush:** a lean economy and up to five Foundries of Strikers and Sparkers
+    with a few Lancers. It sends waves of about 14, then 10, and reinforces in
+    groups.
+  - **Economy-Boom:** a greedy opening of ten Drones and two Depots before its
+    first Foundry, then a mixed army. It attacks at about 34 army supply and
+    retreats when a wave is broken.
+  - **Turtle-and-Tech:** two Sentry Spires in its opening and up to four in
+    all, two Foundries, and a Sparker/Bulwark/Lancer army that attacks at
+    about 30 army supply.
+  - **Wave timing varies.** Each wave's size threshold varies by ±30%, drawn
+    from the AI's own seeded RNG, so the timing can't be learned and
+    exploited.
+- **Expansion (Phase 3).** Home fields run dry by about 5 minutes. Each strategy
+  then claims an uncontested middle field when its data-defined trigger fires:
+  a timer plus a minimum Drone count or army size, or the home field dropping
+  below 35%. It builds a Depot there, moves Drones over and defends the field:
+  - **Rush:** 3 guard units
+  - **Boom:** a Spire and 2 guards
+  - **Turtle:** 2 Spires
+
+  It never expands where it has seen enemy buildings or recent enemy combat
+  units, and it moves on when a field is mined out.
+- **Attack targeting (Phase 3).** Waves go for the nearest enemy Command Core
+  the AI has actually *seen*. If none is known, they go to the enemy start. If
+  that turns out empty, they go to the enemy buildings it remembers, and
+  otherwise sweep the enemy half.
 - **Scouting and reactions** (`src/ai/scout.js`). The AI only knows what it sees:
   enemies within 16 tiles of its buildings or 7 tiles of its units, plus one scout
-  Drone sent to your base. It remembers sightings for 90 s and reacts in two ways:
+  Drone sent to your base. It remembers unit sightings for 90 s, and remembers
+  buildings until it sees their spot empty. It reacts in two ways:
   - An **early rush** (2+ of your combat units at its base before 5:00) sends it
     into defend mode. It recalls its wave, fights at home, builds counters and adds
     a Spire.
@@ -75,6 +110,7 @@ sharply that script is executed.
 | Arrow keys, screen edge, middle-drag | Pan the camera. **Home** recenters on the Core. |
 | **Space** | Jump the camera to where your base was last attacked |
 | **M** | Mute or unmute |
+| **Help** (top bar) | Show the first-run tutorial hints again |
 | **\`** (backtick) | Dev panel. It spawns **test targets** and team-2 test units, for verification only. |
 
 ## Roster
@@ -120,11 +156,17 @@ npm run test:e2e     # Playwright browser tests (npx playwright install chromium
 
 ```bash
 npm run test:fairness  # bot-vs-difficulty win rates (about 2.5 min, 108 full matches)
+npm run balance -- --seeds 100 --out balance/latest.json    # full strategy matrix (1,800 matches, ~20 min on 4 CPUs)
+npm run balance -- --seeds 150 --mirrors --out balance/m.json  # side-bias check: mirror matches only
+npm run balance -- --seeds 100 --offset 1000 --tiers hard   # a disjoint seed set, one tier
 ```
 
-CI runs all three on every push and PR, with fairness as a parallel job. Every
-merge to `main` runs the tests, deploys to GitHub Pages, and polls the live URL
-until it serves that exact commit.
+CI runs the headless, browser and fairness suites on every push and PR, with
+fairness as a parallel job. The headless suite includes one full bot-vs-bot
+match played to a result. The batch runner is a tool, not a CI job; its
+results are committed in `balance/` and reported in [BALANCE.md](BALANCE.md).
+Every merge to `main` runs the tests, deploys to GitHub Pages, and polls the
+live URL until it serves that exact commit.
 
 | Suite | What it proves |
 |---|---|
@@ -142,6 +184,10 @@ until it serves that exact commit.
 | `test/scouting.test.js` | Early-rush and massing reactions for every unit type trigger when they should and not otherwise, within the AI's limited sight |
 | `test/difficulty.test.js`, `e2e/menu.spec.js` | Harder tiers execute the same script faster and react sooner. The start screen launches matches. |
 | `test/fairness/` | Scripted player policies vs every tier over 12 seeds (see below) |
+| `test/sidebias.test.js` | East-half tie-breaks are the mirror image of the west: spiral order, A* paths and spawn side. Jitter-free mirror matches of each strategy stay an exact mirror for 90 s. |
+| `test/expansion.test.js` | Each strategy expands under its trigger with Drones and a defense; it never builds in a field the enemy holds; waves find and destroy a relocated, scouted Core |
+| `test/balance.test.js` | The batch runner's pieces, plus one full bot-vs-bot match played to a result |
+| `test/audio.test.js`, `test/stats.test.js`, `test/tutorial.test.js`, `e2e/polish.spec.js` | Every sim event has a sound; the result-screen stats add up; the first-run tutorial advances, persists, and works with storage blocked |
 | `e2e/groups.spec.js` | Control groups without the browser's reserved Ctrl+1–8: Shift+digit, the HUD group bar, and Fullscreen with Keyboard Lock |
 
 ### Fairness: can the AI be beaten?
@@ -149,12 +195,47 @@ until it serves that exact commit.
 Three scripted player policies run on the same engine and play 12 fixed seeds
 against each tier. The sim is deterministic, so CI reproduces these exact numbers.
 
-| Player win rate | competent (Boom, Hard timing) | intermediate (Turtle, Easy timing) | novice (Rush, Easy timing) |
-|---|---|---|---|
-| vs **Easy** | 100% | 100% | 42% |
-| vs **Normal** | 92% | 100% | 0% |
-| vs **Hard** | 58% | 0% | 0% |
+- **competent:** Boom at Hard timing
+- **intermediate:** Turtle at Easy timing
+- **novice:** Rush, deliberately *slower* than the Easy AI (see below)
 
-A competent player beats every tier; Hard is a real fight, and a novice loses to all three.
+| Player win rate | competent | intermediate | novice |
+|---|---|---|---|
+| vs **Easy** | 100% | 50% | 0% |
+| vs **Normal** | 100% | 17% | 0% |
+| vs **Hard** | 67% | 0% | 0% |
+
+A competent player beats every tier, a novice loses to all three, and each
+policy's win rate falls from Easy to Hard.
+
+**Phase 3 change to the novice.** Phase 2 defined the novice as "Rush at Easy
+timing", which is exactly the Easy AI's own script and timing. Once the side
+bias was fixed, novice-vs-Easy became a pure mirror, a coin flip. The novice is
+now slower than the Easy AI on every axis:
+
+- a decision every 4 s (Easy: 2.5 s)
+- 6 s after each opening step (Easy: 2 s)
+- reactions after 40 s (Easy: 25 s)
+- 60% of the worker target (Easy: 70%)
+
+## Balance notes
+
+The full numbers and method are in [BALANCE.md](BALANCE.md).
+
+- **Before Phase 3.** The strategies formed a strict hierarchy (Boom > Turtle
+  > Rush), with every matchup 94–100% one way.
+- **Tuning.** Phase 3 tuned the strategy data to within about 40–60% in 17 of
+  18 matchups across the three tiers, before the difficulty cap below. The exception is **Turtle beating Rush
+  about 80% at Hard** (77% on seeds 1–100, 81% pooled over 200 seeds): three strategies form a rock-paper-scissors triangle, and
+  every lever that fixed that cell broke another. At Hard, part of the
+  difficulty comes from which matchup you draw. That is a documented design
+  trade-off, and you can pick the AI's strategy on the start screen.
+- **Balance vs difficulty.** Balanced strategies removed the strength gap the
+  difficulty tiers relied on. Difficulty now also caps the AI's Foundries
+  (Easy 1, Normal 2). That keeps the fairness table above true, at the cost
+  of strategy balance at Easy and Normal, where Rush suffers most under the
+  cap (Turtle beats it 99% at Easy).
+- **Side bias.** The Boom mirror's east skew came from unmirrored tie-breaks.
+  It is fixed, and mirror matches now split 50/50.
 
 The headless tests load the exact PathFinding.js bundle the CDN serves, so they exercise the library build that ships.
