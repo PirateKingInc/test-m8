@@ -24,12 +24,13 @@ export function assertFullSequence({ ai, result, openingDoneAt }, strategy) {
   const s = STRATEGIES[strategy];
   const trainedArmy = COMBAT_TYPES.reduce((n, t) => n + (ai.stats.trained[t] || 0), 0);
   console.log(`# ${strategy}: opening done at ${openingDoneAt.at(-1)?.toFixed(0)}s, army trained ${trainedArmy}, waves ${ai.stats.waves}, `
-    + `reached enemy base ${ai.stats.reachedEnemyBase}, result ${JSON.stringify({ winner: result.winner, reason: result.reason, t: Math.round(result.time) })}`);
+    + `crossed ${ai.stats.reachedEnemySide}, engaged ${ai.stats.engaged}, reached base ${ai.stats.reachedEnemyBase}, result ${JSON.stringify({ winner: result.winner, reason: result.reason, t: Math.round(result.time) })}`);
   assert.equal(ai.step, s.opening.length, 'every opening step executed');
   openingDoneAt.forEach((t, i) => assert.ok(t < 300, `opening step ${i} done by 5:00 (at ${t.toFixed(0)}s)`));
   assert.ok(trainedArmy >= 10, `trained an army (${trainedArmy})`);
   assert.ok(ai.stats.waves >= 1, 'launched at least one attack wave');
-  assert.ok(ai.stats.reachedEnemyBase, 'an attack reached the enemy base');
+  assert.ok(ai.stats.reachedEnemySide, 'a wave marched into the enemy half');
+  assert.ok(ai.stats.engaged, 'a wave engaged the enemy');
   assert.ok(['core-destroyed', 'time-limit', 'draw'].includes(result.reason), 'the match ended with a declared result');
   assert.ok(ai.stats.commands > 50 && ai.stats.rejected / ai.stats.commands < 0.2, 'the engine kept issuing valid commands');
 }
@@ -59,3 +60,17 @@ test('Turtle-and-Tech plays its full build/train/attack sequence against the fix
   const spires = [...m.world.ofKind('building')].filter((b) => b.team === 2 && b.type === 'spire');
   assert.ok(spires.every((sp) => sp.x < core.x), 'Spires stand on the front, toward the enemy');
 });
+
+// The last link of the attack chain for every strategy: against an undefended
+// player (no brain), the AI's waves must reach the base and destroy the Command
+// Core, ending the match as a win.
+for (const strategy of ['rush', 'boom', 'turtle']) {
+  test(`${strategy} marches on an undefended base and destroys the Command Core`, () => {
+    const m = new Match({ seed: 5, PF, ai: { strategy, difficulty: 'hard' }, player: null, view: readonly });
+    const r = m.runToEnd();
+    console.log(`# ${strategy} vs undefended: ${r.reason} at ${Math.round(r.time)}s, core assaults ${m.ai.stats.coreAssaults}`);
+    assert.deepEqual([r.winner, r.reason], [2, 'core-destroyed']);
+    assert.ok(m.ai.stats.reachedEnemyBase && m.ai.stats.coreAssaults >= 1, 'issued a direct attack on the Core');
+    assert.ok(r.time < 900, 'well before the time limit');
+  });
+}

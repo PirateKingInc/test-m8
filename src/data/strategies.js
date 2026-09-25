@@ -19,6 +19,29 @@ export const ARMY = {
   maxFoundryQueue: 2,
 };
 
+// AI perception and scouting-triggered reactions (SPEC.md Phase 2 "Scouting").
+export const SCOUTING = {
+  interval: 2, // s between scans
+  baseWatch: 512, // px around any of our buildings (16 tiles)
+  sight: 224, // px around any of our units (7 tiles), incl. the scout Drone
+  memory: 90, // s a sighting is remembered
+  scoutGiveUp: 75, // s before the scout Drone returns to mining regardless
+  earlyWindow: 300, // s: early-aggression trigger only fires before this
+  earlyAggroUnits: 2, // enemy combat units inside base watch to count as a rush
+  defendClear: 20, // s without enemies near base before defend mode ends
+  defendSpires: 1, // Spires to have while defending (strategies may override)
+  massMin: 5, // at least this many of one enemy combat type seen...
+  massShare: 0.5, // ...and a majority of the enemy army seen (a balanced army never trips it)
+  counterShare: 0.7, // share of new production given to counters when reacting
+  // Counter picks from the Phase 1 counter table (PROJECT.md): primary first.
+  counters: {
+    striker: ['bulwark', 'sparker'],
+    sparker: ['bulwark', 'striker'],
+    bulwark: ['lancer'],
+    lancer: ['striker', 'sparker'],
+  },
+};
+
 export const STRATEGIES = {
   rush: {
     name: 'Rush',
@@ -102,6 +125,7 @@ export const STRATEGIES = {
     retreatBelow: 0.3,
     reinforce: false,
     scoutAt: 90,
+    defendSpires: 2, // a Turtle answers a rush with two Spires
   },
 
   // Fixed player-side script used by the strategy playthrough tests: a solid
@@ -123,5 +147,6 @@ export const STRATEGIES = {
     wave: Infinity,
     retreatBelow: null,
     reinforce: false,
+    scouting: false, // a fixed script: it never adapts to what it sees
   },
 };
