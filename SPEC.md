@@ -1,6 +1,6 @@
-# Spec: Phase 1 (sandbox) + Phase 2 (scripted AI opponent)
+# Spec: Phase 1 (sandbox) + Phase 2 (scripted AI opponent) + Phase 3 (balance & polish)
 
-This file has the exact numbers for Phase 1 and, in the second half, Phase 2. The code reads them from
+This file has the exact numbers for Phase 1, then Phase 2, then Phase 3. The code reads them from
 `src/data/units.js`, `src/data/buildings.js` and `src/data/map.js`. If you
 change a number here, change it there too; `test/data.test.js` checks that
 the key values match.
@@ -451,3 +451,67 @@ the default above), or play the Phase 1 **Sandbox** with no opponent.
 6. **Fairness:** repeated bot-vs-AI runs per difficulty with a competent and a
    novice player-side policy. Win rates are reported in the test output and
    the README.
+
+# Phase 3: Balance & polish
+
+## AI expansion (`EXPANSION` and each strategy's `expand` in `src/data/strategies.js`)
+
+- **Fields.** North-middle (centered on tile 40,7) and south-middle (40,52).
+  Each lies between the ridges and is mirror-symmetric. The field data is
+  written for the west team, and the east mirrors x.
+- **Trigger.** Each strategy has its own condition:
+  - **Timer:** game time ≥ `after`, plus `minDrones` Drones and/or
+    `minArmySupply` army supply.
+  - **Home low:** the home field (nodes within 14 tiles of the Core) has less
+    than `orHomeBelow` of its Lumen left.
+  - Nothing triggers while in defend mode or within 120 s of losing an
+    expansion.
+
+  | Strategy | Timer | Home low | Drones sent | Defense |
+  |---|---|---|---|---|
+  | Rush | 420 s and 6 Drones | < 35% | 4 | 3 guard units |
+  | Boom | 240 s and 13 Drones | – | 6 | 1 Spire + 2 guard units |
+  | Turtle | 360 s and 14 army supply | < 35% | 5 | 2 Spires |
+
+- **Uncontested only.** A field is contested if the AI has ever seen an enemy
+  building within 12 tiles of it (and not since seen it gone), or enemy combat
+  units there in the last 60 s. Drones don't count.
+  - The AI takes the nearest uncontested field that still has crystals.
+  - If the field turns out to be contested before the Depot finishes, the AI
+    cancels the Depot (75% refund) and picks again.
+- **Claiming a field:**
+  - a Depot beside the field
+  - its Spires
+  - `drones` Drones moved from the home field (the worker target rises by the
+    same number, so home is refilled)
+  - `guards` combat units posted there, which defend it and never join waves
+- **Afterwards.** When a field is mined out, the AI is free to take the next
+  one. If its expansion Depot is destroyed, those Drones go home and it
+  retries after 120 s.
+
+## Attack targeting
+
+- **Wave target.** Waves attack-move to the **nearest enemy Command Core the
+  AI has seen**.
+  - Cores are remembered until their spot is seen empty again. Since Phase 3,
+    all enemy buildings are remembered that way: buildings don't move, so they
+    no longer expire after 90 s like unit sightings.
+- **With no Core known,** the target is the enemy start. If the start has been
+  seen with no Core, the target is the nearest enemy building believed to be
+  standing, and failing that, a sweep of the enemy half
+  (`SCOUTING.searchPoints`). The sweep moves to the next point once one of the
+  AI's units has it in sight.
+- **Direct assault.** When a wave is near the target Core and no enemy combat
+  units defend it, the wave attacks the Core directly (unchanged from Phase 2).
+
+## Phase 3 verification
+
+- `test/expansion.test.js`:
+  - each strategy expands under its trigger, to a middle field, with its
+    Drones and defense
+  - no AI Depot is ever finished in a field the enemy holds
+  - an AI wave finds a Core that was moved away from its start and destroys it
+- `test/sidebias.test.js`: mirror equivariance (see "Side symmetry").
+- `test/balance.test.js`: one full bot-vs-bot match to a result on every CI
+  run.
+- `tools/balance.mjs` produces the strategy matrix. BALANCE.md has the results.

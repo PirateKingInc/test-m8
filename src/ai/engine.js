@@ -11,7 +11,7 @@
 // - No Phaser, no DOM, no direct state mutation, no cheating.
 import { BUILDINGS } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
-import { STRATEGIES, SPOTS, ARMY, SCOUTING } from '../data/strategies.js';
+import { STRATEGIES, SPOTS, ARMY, SCOUTING, EXPANSION } from '../data/strategies.js';
 import { Scout } from './scout.js';
 import { DIFFICULTY } from '../data/difficulty.js';
 import { canPlace } from '../sim/construction.js';
@@ -56,6 +56,9 @@ export class AiEngine {
     this.pendingEarly = null; // when an early-aggression condition was first seen
     this.pendingMass = null; // { type, at } when a massing condition was first seen
     this.reactions = []; // { t, kind, detail } for tests and the result screen
+    this.expansion = null; // { name, center, depot, spire, guard, nodes } once we expand
+    this.expandRetryAt = 0;
+    this.guards = new Set(); // combat units posted at the expansion (never join waves)
   }
 
   // ---- acting -------------------------------------------------------------
@@ -97,8 +100,9 @@ export class AiEngine {
 
   // A valid footprint near the desired spot that leaves a one-tile walkable ring
   // around the building, so the AI never walls in its own units.
+  // `key` is a SPOTS name, or an absolute { tx, ty } (expansion buildings).
   placement(type, key) {
-    const want = this.spot(key, type), def = BUILDINGS[type], g = this.w.grid;
+    const want = typeof key === 'object' ? key : this.spot(key, type), def = BUILDINGS[type], g = this.w.grid;
     const east = this.core().x > this.w.width / 2;
     const ringFree = (tx, ty) => {
       for (let y = ty - 1; y <= ty + def.h; y++) for (let x = tx - 1; x <= tx + def.w; x++) {
@@ -235,7 +239,7 @@ export class AiEngine {
     }
     // 2. Workers up to the (difficulty-scaled) target, one at a time.
     const core = this.mine('building', 'core').find((b) => b.built);
-    const target = Math.floor(s.workerTarget * this.d.workerFactor);
+    const target = Math.floor(s.workerTarget * this.d.workerFactor) + (this.expansion?.depotBuilt ? s.expand.drones : 0);
     if (core && core.queue.length === 0 && this.mine('unit', 'drone').length < target) this.tryTrain('drone', 1);
     // Defend mode: make sure we have the Spires the reaction calls for.
     if (this.defending) {
@@ -243,6 +247,8 @@ export class AiEngine {
       const have = this.mine('building', 'spire').length;
       if (have < want && this.tryBuild('spire', have ? 'spire2' : 'spire', true)) return;
     }
+    // Expansion to a middle field (Depot, then its guard Spires).
+    if (this.runExpansion()) return;
     // 3. More production when Lumen piles up, then strategy-specific structures.
     const foundries = this.mine('building', 'foundry').length;
     if (!this.pendingBuild && foundries < (s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
@@ -359,6 +365,155 @@ export class AiEngine {
     return best;
   }
 
+  // ---- expansion (Phase 3) --------------------------------------------------
+
+  // A middle field's tiles for our side (the data is written for the west).
+  field(name) {
+    const f = EXPANSION.fields[name], T = this.w.grid.tile;
+    const east = this.core().x > this.w.width / 2, cols = this.w.grid.cols;
+    const fx = (tx, w) => (east ? cols - tx - w : tx);
+    const center = { x: (fx(f.center[0], 0)) * T, y: f.center[1] * T };
+    return {
+      name, center,
+      depot: { tx: fx(f.depot[0], BUILDINGS.depot.w), ty: f.depot[1] },
+      spire: { tx: fx(f.spire[0], BUILDINGS.spire.w), ty: f.spire[1] },
+      guard: { x: (fx(f.guard[0], 1) + 0.5) * T, y: (f.guard[1] + 0.5) * T },
+    };
+  }
+
+  nodesNear(p, tiles) {
+    const r = tiles * this.w.grid.tile;
+    return [...this.w.ofKind('node')].filter((n) => n.amount > 0 && Math.hypot(n.x - p.x, n.y - p.y) <= r);
+  }
+
+  // Share of the home field's Lumen still in the ground.
+  homeLeft() {
+    const core = this.core();
+    if (!core) return 0;
+    this.homeTotal ??= this.nodesNear(core, EXPANSION.homeRadius).reduce((a, n) => a + n.amount, 0);
+    if (!this.homeTotal) return 0;
+    return this.nodesNear(core, EXPANSION.homeRadius).reduce((a, n) => a + n.amount, 0) / this.homeTotal;
+  }
+
+  // A field is contested if the AI has seen an enemy building there (still
+  // believed standing) or enemy combat units near it recently. Enemy Drones
+  // alone don't count. Only what the AI has seen counts.
+  contested(f) {
+    const r = EXPANSION.contestRadius * this.w.grid.tile, now = this.w.time;
+    for (const m of this.scout.memory.values()) {
+      if (Math.hypot(m.x - f.center.x, m.y - f.center.y) > r) continue;
+      if (m.kind === 'building' || (COMBAT_TYPES.includes(m.type) && now - m.seenAt <= EXPANSION.contestMemory)) return true;
+    }
+    return false;
+  }
+
+  // Why we'd expand now ('home-low' or 'timer'), or null.
+  expandWanted() {
+    const x = this.s.expand;
+    if (!x || this.w.time < this.expandRetryAt || this.defending) return null;
+    if (x.orHomeBelow != null && this.homeLeft() < x.orHomeBelow) return 'home-low';
+    if (this.w.time < x.after) return null;
+    if (x.minDrones && this.mine('unit', 'drone').length < x.minDrones) return null;
+    if (x.minArmySupply && this.army().reduce((n, u) => n + UNITS[u.type].supply, 0) < x.minArmySupply) return null;
+    return 'timer';
+  }
+
+  ourDepotAt(f) {
+    const r = EXPANSION.fieldRadius * 2 * this.w.grid.tile;
+    return this.mine('building', 'depot').find((b) => Math.hypot(b.x - f.center.x, b.y - f.center.y) <= r) || null;
+  }
+
+  // Returns true when it placed a building this round.
+  runExpansion() {
+    const x = this.s.expand, core = this.core();
+    if (!x || !core) return false;
+    if (!this.expansion) {
+      const why = this.expandWanted();
+      if (!why) return false;
+      const fields = Object.keys(EXPANSION.fields).map((n) => this.field(n))
+        .filter((f) => this.nodesNear(f.center, EXPANSION.fieldRadius).length && !this.contested(f))
+        .sort((a, b) => Math.hypot(a.center.x - core.x, a.center.y - core.y) - Math.hypot(b.center.x - core.x, b.center.y - core.y));
+      if (!fields.length) return false;
+      this.expansion = { ...fields[0], since: this.w.time, depotBuilt: false, why };
+      this.react('expand', `${fields[0].name} field (${why}): Depot, ${x.drones} Drones, ${x.spires} Spire(s), ${x.guards} guard(s)`);
+    }
+    const e = this.expansion, depot = this.ourDepotAt(e);
+    if (e.depotBuilt && !depot) return this.loseExpansion();
+    if (!e.depotBuilt && this.contested(e)) { // the enemy turned up there first: pick again
+      if (depot) this.issue({ type: 'cancelBuild', id: depot.id });
+      this.react('expand-abort', `${e.name} field is held by the enemy`);
+      this.expansion = null;
+      return false;
+    }
+    if (!depot) return this.tryBuild('depot', e.depot);
+    if (!depot.built) return false;
+    e.depotBuilt = true;
+    if (!this.nodesNear(e.center, EXPANSION.fieldRadius).length) { // mined out: free to take the next field
+      this.react('expansion-mined-out', e.name);
+      this.expansion = null;
+      return false;
+    }
+    const spireR = EXPANSION.fieldRadius * 2 * this.w.grid.tile;
+    const spires = this.mine('building', 'spire').filter((b) => Math.hypot(b.x - e.center.x, b.y - e.center.y) <= spireR).length;
+    if (spires < x.spires && this.tryBuild('spire', e.spire)) return true;
+    this.staffExpansion();
+    return false;
+  }
+
+  // Keep `expand.drones` Drones mining the expansion field.
+  staffExpansion() {
+    const e = this.expansion, want = this.s.expand.drones;
+    const nodes = this.nodesNear(e.center, EXPANSION.fieldRadius);
+    if (!nodes.length) return;
+    const ids = new Set(nodes.map((n) => n.id));
+    const drones = this.mine('unit', 'drone');
+    const there = drones.filter((d) => d.order.type === 'gather' && ids.has(d.order.node));
+    if (there.length >= want) return;
+    const scouting = this.scout.activeScout();
+    const spare = drones.filter((d) => d.order.type === 'gather' && !ids.has(d.order.node) && d.id !== scouting && d.carry === 0);
+    const busy = new Map(nodes.map((n) => [n.id, 0]));
+    for (const d of there) busy.set(d.order.node, busy.get(d.order.node) + 1);
+    for (const d of spare.slice(0, want - there.length)) {
+      const pick = nodes.reduce((a, b) => (busy.get(b.id) < busy.get(a.id) ? b : a));
+      busy.set(pick.id, busy.get(pick.id) + 1);
+      this.issue({ type: 'gather', ids: [d.id], node: pick.id });
+    }
+  }
+
+  // The expansion Depot fell: bring its Drones home and retry later.
+  loseExpansion() {
+    const ids = new Set(this.nodesNear(this.expansion.center, EXPANSION.fieldRadius).map((n) => n.id));
+    const back = this.mine('unit', 'drone').filter((d) => d.order.type === 'gather' && ids.has(d.order.node));
+    if (back.length) this.issue({ type: 'stop', ids: back.map((d) => d.id) }); // gatherIdle re-homes them
+    this.react('expansion-lost', this.expansion.name);
+    this.expansion = null;
+    this.expandRetryAt = this.w.time + EXPANSION.retryAfter;
+    return false;
+  }
+
+  // Post `expand.guards` combat units at the expansion; they defend it and
+  // never join attack waves. Returns the guard ids.
+  postGuards(home) {
+    for (const id of this.guards) if (!this.w.get(id)) this.guards.delete(id);
+    const e = this.expansion, want = this.s.expand?.guards || 0;
+    if (!e || !want) {
+      if (this.guards.size) this.guards.clear();
+      return this.guards;
+    }
+    const free = home.filter((u) => !this.guards.has(u.id))
+      .sort((a, b) => Math.hypot(a.x - e.guard.x, a.y - e.guard.y) - Math.hypot(b.x - e.guard.x, b.y - e.guard.y));
+    const add = free.slice(0, Math.max(0, want - this.guards.size));
+    for (const u of add) this.guards.add(u.id);
+    const leash = EXPANSION.guardLeash * this.w.grid.tile;
+    const back = [...this.guards].map((id) => this.w.get(id))
+      .filter((u) => u.order.type === 'idle' && Math.hypot(u.x - e.guard.x, u.y - e.guard.y) > leash);
+    if (add.length || back.length) {
+      const ids = [...new Set([...add, ...back].map((u) => u.id))];
+      this.issue({ type: 'attackMove', ids, x: e.guard.x, y: e.guard.y });
+    }
+    return this.guards;
+  }
+
   // ---- army control -------------------------------------------------------
 
   enemyTeam() { return this.team === 1 ? 2 : 1; }
@@ -370,14 +525,32 @@ export class AiEngine {
     return { x: (st.core[0] + 2) * T, y: (st.core[1] + 2) * T };
   }
 
-  // What to hit: the enemy Command Core at its start if it still stands there,
-  // otherwise the enemy start itself (attack-move engages whatever is there).
+  // What to hit (Phase 3): the nearest enemy Command Core the scout knows of;
+  // with none known, the enemy start, unless that has been seen empty, then the
+  // nearest enemy building still believed standing, then a sweep of the enemy
+  // half (SCOUTING.searchPoints). Returns
+  // the Core itself when one is known, otherwise a { x, y } point.
   attackTarget() {
-    const p = this.enemyStart();
-    for (const b of this.w.ofKind('building')) {
-      if (b.team === this.enemyTeam() && b.type === 'core' && Math.hypot(b.x - p.x, b.y - p.y) < 200) return b;
+    const home = this.core() || this.enemyStart();
+    const [known] = this.scout.knownCores(home);
+    if (known) {
+      const live = this.w.get(known.id);
+      return live && live.hp > 0 ? live : { x: known.x, y: known.y };
     }
-    return null;
+    const start = this.enemyStart();
+    if (this.scout.startEmptyAt == null) return start;
+    const seen = this.scout.knownBuildings()
+      .sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y));
+    if (seen.length) return { x: seen[0].x, y: seen[0].y };
+    // Nothing known: sweep the enemy half, moving on once a point is in sight.
+    const pts = SCOUTING.searchPoints, T = this.w.grid.tile, cols = this.w.grid.cols;
+    const at = (i) => {
+      const [tx, ty] = pts[i % pts.length];
+      return { x: ((this.team === 1 ? cols - tx : tx)) * T, y: ty * T };
+    };
+    this.searchIdx ??= 0;
+    for (let n = 0; n < pts.length && this.scout.sees(at(this.searchIdx).x, at(this.searchIdx).y); n++) this.searchIdx++;
+    return at(this.searchIdx);
   }
 
   rallyPoint() {
@@ -406,9 +579,10 @@ export class AiEngine {
     for (const f of this.mine('building', 'foundry')) {
       if (f.built && !this.rallySet.has(f.id)) { this.issue({ type: 'rally', building: f.id, ...rally }); this.rallySet.add(f.id); }
     }
-    const army = this.army();
     const inWave = new Set(this.wave.filter((id) => this.w.get(id)));
     this.wave = [...inWave];
+    const guards = this.postGuards(this.army().filter((u) => !inWave.has(u.id)));
+    const army = this.army().filter((u) => !guards.has(u.id));
     const home = army.filter((u) => !inWave.has(u.id));
 
     // Defend mode (early-aggression trigger): recall any wave and send the whole
@@ -462,14 +636,15 @@ export class AiEngine {
   }
 
   joinWave(units) {
-    const t = this.attackTarget() || this.enemyStart();
+    const t = this.attackTarget();
     this.issue({ type: 'attackMove', ids: units.map((u) => u.id), x: t.x, y: t.y });
     for (const u of units) this.wave.push(u.id);
   }
 
   // Near the enemy Core with no enemy units around: hit the Core directly.
   pressAttack() {
-    const core = this.attackTarget();
+    const t = this.attackTarget();
+    const core = t.type === 'core' ? t : null;
     const units = this.wave.map((id) => this.w.get(id)).filter(Boolean);
     if (!units.length) return;
     const cx = units.reduce((a, u) => a + u.x, 0) / units.length, cy = units.reduce((a, u) => a + u.y, 0) / units.length;
@@ -477,7 +652,12 @@ export class AiEngine {
     if ((start.x < mid) === (cx < mid)) this.stats.reachedEnemySide = true;
     if (Math.hypot(cx - start.x, cy - start.y) < ARMY.homeRadius) this.stats.reachedEnemyBase = true;
     if (units.some((u) => u.order.type === 'attack' || (u.order.type === 'attackMove' && u.order.target))) this.stats.engaged = true;
-    if (!core) return;
+    if (!core) {
+      // No Core in sight yet: idle wave units head for the target point.
+      const idle = units.filter((u) => u.order.type === 'idle' && Math.hypot(u.x - t.x, u.y - t.y) > 96);
+      if (idle.length) this.issue({ type: 'attackMove', ids: idle.map((u) => u.id), x: t.x, y: t.y });
+      return;
+    }
     const near = units.filter((u) => Math.hypot(u.x - core.x, u.y - core.y) < ARMY.coreAssault + core.pw);
     if (!near.length) {
       const idle = units.filter((u) => u.order.type === 'idle');
@@ -496,6 +676,7 @@ export class AiEngine {
   // One decision round. The match loop calls update() every tick, which calls
   // think() every `decisionInterval`; the Phase 1 bot test calls think() directly.
   think() {
+    this.homeLeft(); // measures the home field on the first decision
     this.trackConstruction();
     this.gatherIdle();
     const opened = this.runOpening();

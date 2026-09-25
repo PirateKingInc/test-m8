@@ -33,6 +33,9 @@ export const SCOUTING = {
   massMin: 5, // at least this many of one enemy combat type seen...
   massShare: 0.5, // ...and a majority of the enemy army seen (a balanced army never trips it)
   counterShare: 0.7, // share of new production given to counters when reacting
+  // Where attack waves look for the enemy when its start is empty and no enemy
+  // building is known (west-half tiles; mirrored when searching the east).
+  searchPoints: [[10, 8], [10, 51], [22, 10], [22, 49], [40, 7], [40, 52]],
   // Counter picks from the Phase 1 counter table (PROJECT.md): primary first.
   counters: {
     striker: ['bulwark', 'sparker'],
@@ -40,6 +43,22 @@ export const SCOUTING = {
     bulwark: ['lancer'],
     lancer: ['striker', 'sparker'],
   },
+};
+
+// Expansion to the middle crystal fields (Phase 3). Tiles are absolute and
+// written for the west team; the engine mirrors x for the east team. Each field
+// is itself mirror-symmetric about the map's center line.
+export const EXPANSION = {
+  fields: {
+    north: { center: [40, 7], depot: [33, 6], spire: [34, 10], guard: [35, 13] },
+    south: { center: [40, 52], depot: [33, 50], spire: [34, 46], guard: [35, 45] },
+  },
+  fieldRadius: 6, // tiles: crystal nodes this close to the center belong to the field
+  homeRadius: 14, // tiles from our Core that count as the home field
+  contestRadius: 12, // tiles: an enemy combat unit seen this close to a field makes it contested...
+  contestMemory: 60, // ...if seen within this many seconds (enemy buildings: any time)
+  retryAfter: 120, // s before re-expanding after losing an expansion Depot
+  guardLeash: 5, // tiles a guard may drift from its post before returning
 };
 
 export const STRATEGIES = {
@@ -62,6 +81,8 @@ export const STRATEGIES = {
     reinforce: true,
     reinforceMin: 3, // reinforcements leave home in groups of at least this many
     scoutAt: 30,
+    // Expands late, or once the home field runs low; guards it with units.
+    expand: { after: 420, minDrones: 6, orHomeBelow: 0.35, drones: 4, spires: 0, guards: 3 },
   },
 
   // The Phase 1 sandbox bot's behaviour, now expressed as a script: one of every
@@ -100,6 +121,8 @@ export const STRATEGIES = {
     retreatBelow: 0.35,
     reinforce: false,
     scoutAt: 60,
+    // Greedy: expands as soon as the home economy is saturated, with a Spire and two guards.
+    expand: { after: 240, minDrones: 13, drones: 6, spires: 1, guards: 2 },
   },
 
   turtle: {
@@ -126,6 +149,8 @@ export const STRATEGIES = {
     reinforce: false,
     scoutAt: 90,
     defendSpires: 2, // a Turtle answers a rush with two Spires
+    // Expands once its army can hold the base, and fortifies the field with two Spires.
+    expand: { after: 360, minArmySupply: 14, orHomeBelow: 0.35, drones: 5, spires: 2, guards: 0 },
   },
 
   // Fixed player-side script used by the strategy playthrough tests: a solid
