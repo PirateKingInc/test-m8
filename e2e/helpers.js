@@ -7,7 +7,7 @@ const CDN = {
     'node_modules/pathfinding/visual/lib/pathfinding-browser.min.js',
 };
 
-export async function openGame(page, query = '') {
+export async function openGame(page, query = '?mode=sandbox') {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

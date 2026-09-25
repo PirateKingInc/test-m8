@@ -14,6 +14,7 @@ export class Scout {
     this.scoutId = null;
     this.scoutSentAt = null;
     this.scoutDone = false;
+    this.scoutArrivedAt = null;
   }
 
   // Where our eyes are: base watch circles around buildings, sight around units.
@@ -52,8 +53,8 @@ export class Scout {
     if (this.scoutId == null) {
       const d = this.e.mine('unit', 'drone').find((u) => u.order.type === 'gather' && u.carry === 0);
       if (!d) return;
-      const p = this.e.enemyStart();
-      this.e.issue({ type: 'move', ids: [d.id], x: p.x - (this.e.team === 1 ? 160 : -160), y: p.y });
+      const p = this.e.enemyStart(); // the pathfinder stops at the nearest reachable tile
+      this.e.issue({ type: 'move', ids: [d.id], x: p.x, y: p.y });
       this.scoutId = d.id;
       this.scoutSentAt = now;
       this.e.note('scout drone sent');
@@ -61,12 +62,18 @@ export class Scout {
     }
     const d = this.e.w.get(this.scoutId);
     if (!d) { this.scoutDone = true; this.e.note('scout drone lost'); return; }
-    if (d.order.type === 'idle' || now - this.scoutSentAt > this.cfg.scoutGiveUp) {
+    if (d.order.type === 'idle') this.scoutArrivedAt ??= now;
+    // Loiter at the enemy start long enough for two scans, then go back to work.
+    const looked = this.scoutArrivedAt != null && now - this.scoutArrivedAt >= 2 * this.cfg.interval;
+    if (looked || now - this.scoutSentAt > this.cfg.scoutGiveUp) {
       this.scoutDone = true; // gatherIdle() puts it back to work
       if (d.order.type !== 'idle') this.e.issue({ type: 'stop', ids: [d.id] });
       this.e.note('scout drone returning');
     }
   }
+
+  // The Drone currently out scouting (gatherIdle leaves it alone).
+  activeScout() { return this.scoutDone ? null : this.scoutId; }
 
   update() {
     this.runScout();

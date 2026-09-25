@@ -7,13 +7,14 @@ export const DIFFICULTY = {
     stepDelay: 6, // s of extra idle time after each opening step
     reactionDelay: 25, // s before a scouting trigger takes effect
     workerFactor: 0.7, // x the strategy's worker target
+    jitter: 0.3, // +/- share of random slack on each decision and step delay (seeded)
   },
   normal: {
     name: 'Normal', strategy: 'turtle',
-    decisionInterval: 1.2, stepDelay: 2, reactionDelay: 10, workerFactor: 0.9,
+    decisionInterval: 1.2, stepDelay: 2, reactionDelay: 10, workerFactor: 0.9, jitter: 0.2,
   },
   hard: {
     name: 'Hard', strategy: 'rush',
-    decisionInterval: 0.5, stepDelay: 0, reactionDelay: 3, workerFactor: 1.0,
+    decisionInterval: 0.5, stepDelay: 0, reactionDelay: 3, workerFactor: 1.0, jitter: 0.1,
   },
 };

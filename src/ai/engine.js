@@ -35,9 +35,10 @@ export class AiEngine {
     this.w = view;
     this.team = team;
     this.issueFn = (cmd) => world.issue(cmd);
+    this.d = typeof difficulty === 'string' ? DIFFICULTY[difficulty] : difficulty;
+    if (strategy === 'auto') strategy = this.d.strategy; // each difficulty's default strategy
     this.strategyId = strategy;
     this.s = typeof strategy === 'string' ? STRATEGIES[strategy] : strategy;
-    this.d = typeof difficulty === 'string' ? DIFFICULTY[difficulty] : difficulty;
     this.rng = createRng(seed * 31 + team); // the engine's own RNG, never the sim's
     this.log = [];
     this.step = 0; // index of the next opening step
@@ -65,6 +66,11 @@ export class AiEngine {
     this.stats.commands++;
     if (!res.ok) this.stats.rejected++;
     return res;
+  }
+
+  // Timing slack from the engine's own seeded RNG, so repeated matches differ.
+  jittered(t) {
+    return t * (1 + (this.d.jitter || 0) * (2 * this.rng.next() - 1));
   }
 
   note(msg) { this.log.push(`[${this.w.time.toFixed(1)}s] ${msg}`); }
@@ -136,7 +142,8 @@ export class AiEngine {
   // Put every idle drone to work, spreading them over the crystals near our base
   // (least-busy node first, nearest on ties) so a big economy isn't one queue.
   gatherIdle() {
-    const idle = this.mine('unit', 'drone').filter((d) => d.order.type === 'idle');
+    const scouting = this.scout?.activeScout();
+    const idle = this.mine('unit', 'drone').filter((d) => d.order.type === 'idle' && d.id !== scouting);
     const core = this.core();
     if (!idle.length || !core) return;
     const nodes = [...this.w.ofKind('node')]
@@ -208,7 +215,7 @@ export class AiEngine {
     const ok = st.build ? this.tryBuild(st.build, st.spot) : this.tryTrain(st.train);
     if (ok) {
       this.step++;
-      this.nextStepAt = this.w.time + this.d.stepDelay;
+      this.nextStepAt = this.w.time + this.jittered(this.d.stepDelay);
     }
     return this.step >= steps.length;
   }
@@ -498,7 +505,7 @@ export class AiEngine {
 
   update() {
     if (this.w.result || this.w.time < this.nextThinkAt) return;
-    this.nextThinkAt = this.w.time + this.d.decisionInterval;
+    this.nextThinkAt = this.w.time + this.jittered(this.d.decisionInterval);
     if (!this.core()) return; // defeated
     this.think();
   }
