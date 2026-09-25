@@ -36,7 +36,8 @@ test('the same script finishes its opening sooner on harder tiers', () => {
   }
   console.log(`# Boom opening finished at: easy ${doneAt.easy.toFixed(0)}s, normal ${doneAt.normal.toFixed(0)}s, hard ${doneAt.hard.toFixed(0)}s`);
   assert.ok(doneAt.hard < doneAt.normal && doneAt.normal < doneAt.easy);
-  assert.ok(doneAt.easy - doneAt.hard > 15, 'the gap is substantial (stepDelay overlaps time spent waiting for Lumen)');
+  // Phase 3 cut Easy's stepDelay from 6 s to 2 s for strategy balance, so the gap is smaller but still clear.
+  assert.ok(doneAt.easy - doneAt.hard > 5, 'the gap is clear (stepDelay overlaps time spent waiting for Lumen)');
 });
 
 test('easier tiers react to scouting later', () => {
@@ -64,7 +65,8 @@ test('worker factor scales the economy, never the rules: no tier gets extra reso
     assert.equal(m.world.resources[2] >= 0, true);
   }
   assert.ok(drones.easy < drones.hard, `easy ${drones.easy} < hard ${drones.hard}`);
-  assert.ok(drones.easy <= Math.floor(STRATEGIES.boom.workerTarget * DIFFICULTY.easy.workerFactor) + 1);
+  // The worker target, plus the Drones sent to an expansion (Phase 3), plus one in training.
+  assert.ok(drones.easy <= Math.floor(STRATEGIES.boom.workerTarget * DIFFICULTY.easy.workerFactor) + STRATEGIES.boom.expand.drones + 1);
 });
 
 test('seeded timing jitter makes repeated matches differ, but each seed replays exactly', () => {

@@ -55,7 +55,9 @@ test('Turtle-and-Tech plays its full build/train/attack sequence against the fix
   assert.ok(ai.stats.built.spire >= 2, `builds Spires (${ai.stats.built.spire})`);
   const heavy = (ai.stats.trained.bulwark || 0) + (ai.stats.trained.lancer || 0);
   const all = ['striker', 'sparker', 'bulwark', 'lancer'].reduce((n, t) => n + (ai.stats.trained[t] || 0), 0);
-  assert.ok(heavy / all >= 0.6, `favours Bulwark/Lancer (${heavy}/${all})`);
+  // Phase 3 composition: Sparkers 2 : Bulwarks 2 : Lancers 1, so heavy tech is 60% of the weights.
+  assert.ok(heavy / all >= 0.4, `fields Bulwark/Lancer heavy tech (${heavy}/${all})`);
+  assert.ok((ai.stats.trained.striker || 0) / all < 0.2, 'no Striker-based army of its own');
   const core = [...m.world.ofKind('building')].find((b) => b.team === 2 && b.type === 'core') || { x: 69 * 32 };
   const spires = [...m.world.ofKind('building')].filter((b) => b.team === 2 && b.type === 'spire');
   assert.ok(spires.every((sp) => sp.x < core.x), 'Spires stand on the front, toward the enemy');

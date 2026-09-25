@@ -6,7 +6,7 @@ export const DIFFICULTY = {
   easy: {
     name: 'Easy', strategy: 'rush',
     decisionInterval: 2.5, // s between engine decisions
-    stepDelay: 6, // s of extra idle time after each opening step
+    stepDelay: 2, // s of extra idle time after each opening step
     reactionDelay: 25, // s before a scouting trigger takes effect
     workerFactor: 0.7, // x the strategy's worker target
     jitter: 0.3, // +/- share of random slack on each decision and step delay (seeded)
