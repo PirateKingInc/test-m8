@@ -156,7 +156,7 @@ export const STRATEGIES = {
     retreatBelow: 0.3,
     reinforce: false,
     scoutAt: 90,
-    defendSpires: 1, // a Turtle answers a rush with one more Spire (its opening already builds two)
+    defendSpires: 2, // a Turtle answers a rush with two Spires
     // Expands once its army can hold the base, and fortifies the field with two Spires.
     expand: { after: 360, minArmySupply: 14, orHomeBelow: 0.35, drones: 5, spires: 2, guards: 0 },
   },
