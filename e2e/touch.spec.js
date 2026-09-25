@@ -230,3 +230,70 @@ test('tapping the under-attack alert jumps the camera to the attack', async ({ p
   const mid = await page.evaluate(() => window.__game.scene.cameras.main.midPoint);
   expect(Math.hypot(mid.x - at.x, mid.y - at.y)).toBeLessThan(400);
 });
+
+// ---- P4-7: the tutorial, played with touch only -----------------------------
+
+test('first-run tutorial on touch: every hint teaches touch, and touch alone completes all six steps', async ({ page }) => {
+  const { errors, touch } = await openTouchGame(page, '?mode=match&difficulty=easy&seed=6&speed=8', { tutorial: true });
+  const step = () => page.locator('#tutorial-step').textContent();
+  await expect(page.locator('#tutorial')).toBeVisible();
+  await expect(page.locator('#tutorial-text')).toContainText('Tap a');
+  // 1. select: double-tap a Drone
+  const ds = await drones(page);
+  let s = await screenOf(page, ds[0].x, ds[0].y);
+  await touch.doubleTap(s.x, s.y);
+  await expect.poll(step).toBe('2 / 6');
+  await expect(page.locator('#tutorial-text')).toContainText('Order');
+  // 2. gather: Order, then tap the nearest crystal
+  const node = await page.evaluate(([x, y]) => { const ns = [...window.__game.world.ofKind('node')]; ns.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)); return { x: ns[0].x, y: ns[0].y }; }, [ds[0].x, ds[0].y]);
+  await centerOn(page, (node.x + ds[0].x) / 2, (node.y + ds[0].y) / 2);
+  await arm(page, touch, 'order');
+  s = await screenOf(page, node.x, node.y);
+  await touch.tap(s.x, s.y);
+  await expect.poll(step).toBe('3 / 6');
+  // 3. depot and 4. foundry: build buttons, then drag to place (Drones are still selected)
+  for (const [type, dx, next] of [['depot', -120, '4 / 6'], ['foundry', -110, '5 / 6']]) {
+    await touch.tapEl(`#command-card button[data-action="build:${type}"]`);
+    await expect.poll(() => page.evaluate(() => window.__game.scene.ui.placing)).toBe(type);
+    const core = await page.evaluate(() => { const c = [...window.__game.world.ofKind('building')].find((b) => b.team === 1 && b.type === 'core'); return { x: c.x, y: c.y }; });
+    const spot = type === 'depot' ? { x: core.x + 150, y: core.y - 110 } : { x: core.x + 150, y: core.y + 150 };
+    await centerOn(page, spot.x + dx, spot.y);
+    const a = await screenOf(page, spot.x - 30, spot.y), b = await screenOf(page, spot.x, spot.y);
+    await touch.drag(a.x, a.y, b.x, b.y);
+    await expect.poll(step).toBe(next);
+    // Let the Depot finish before the Foundry takes its builders (a Drone must stay on a site).
+    if (type === 'depot') await expect.poll(() => page.evaluate(() => [...window.__game.world.ofKind('building')].some((x) => x.team === 1 && x.type === 'depot' && x.built)), { timeout: 30000 }).toBe(true);
+  }
+  // 5. train: wait for the Foundry, send the idle builders back to mining
+  // (placement sends every selected Drone to build), then tap the Foundry and a unit button.
+  await expect.poll(() => page.evaluate(() => [...window.__game.world.ofKind('building')].some((b) => b.team === 1 && b.type === 'foundry' && b.built)), { timeout: 30000 }).toBe(true);
+  const d0 = await page.evaluate(() => { const u = [...window.__game.world.ofKind('unit')].find((x) => x.team === 1 && x.type === 'drone'); return { x: u.x, y: u.y }; });
+  await centerOn(page, (d0.x + node.x) / 2, (d0.y + node.y) / 2);
+  s = await screenOf(page, d0.x, d0.y);
+  await touch.doubleTap(s.x, s.y);
+  await arm(page, touch, 'order');
+  s = await screenOf(page, node.x, node.y);
+  await touch.tap(s.x, s.y);
+  const f = await page.evaluate(() => { const b = [...window.__game.world.ofKind('building')].find((x) => x.team === 1 && x.type === 'foundry'); return { x: b.x, y: b.y }; });
+  await centerOn(page, f.x - 100, f.y);
+  s = await screenOf(page, f.x, f.y);
+  await touch.tap(s.x, s.y);
+  // Depot + Foundry spent the starting Lumen: wait until the Drones have mined enough.
+  await expect(page.locator('#command-card button[data-action="train:striker"]')).toBeEnabled({ timeout: 30000 });
+  await touch.tapEl('#command-card button[data-action="train:striker"]');
+  await expect.poll(step, { timeout: 30000 }).toBe('6 / 6');
+  // 6. attack: once the new Striker has stopped walking out of the Foundry,
+  // tap it, arm Attack-move and tap the ground ahead.
+  await expect.poll(() => page.evaluate(() => [...window.__game.world.ofKind('unit')].find((x) => x.team === 1 && x.type === 'striker')?.order.type), { timeout: 30000 }).toBe('idle');
+  const st = await page.evaluate(() => { const u = [...window.__game.world.ofKind('unit')].find((x) => x.team === 1 && x.type === 'striker'); return { x: u.x, y: u.y }; });
+  await centerOn(page, st.x, st.y);
+  s = await screenOf(page, st.x, st.y);
+  await touch.tap(s.x, s.y);
+  await expect.poll(() => sel(page)).toHaveLength(1);
+  await arm(page, touch, 'attack');
+  s = await screenOf(page, st.x + 150, st.y);
+  await touch.tap(s.x, s.y);
+  await expect.poll(step).toBe('done');
+  await expect(page.locator('#tutorial-text')).toContainText('pinch to zoom');
+  expect(errors).toEqual([]);
+});

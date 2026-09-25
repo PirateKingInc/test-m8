@@ -46,3 +46,18 @@ test('the tutorial works when storage is unavailable', () => {
   assert.doesNotThrow(() => Tutorial.reset(broken));
   assert.equal(new Tutorial({ storage: null }).active, true);
 });
+
+test('the tutorial speaks the input mode: touch hints teach the action bar, mouse hints are unchanged', () => {
+  const touch = new Tutorial({ storage: memory(), mode: 'touch' });
+  const mouse = new Tutorial({ storage: memory(), mode: 'mouse' });
+  assert.match(touch.view().text, /Tap/);
+  assert.match(mouse.view().text, /Drag a box/);
+  touch.step = 1; mouse.step = 1;
+  assert.match(touch.view().text, /➜ Order/);
+  assert.match(mouse.view().text, /Right-click/);
+  for (const st of STEPS) assert.ok(st.touch && !/right-click|press <kbd>/i.test(st.touch), `touch wording for ${st.id}`);
+  const renders = [];
+  const t = new Tutorial({ storage: memory(), mode: 'mouse', render: (v) => renders.push(v) });
+  t.setMode('touch');
+  assert.match(renders.at(-1).text, /Tap/, 'switching mode re-renders the hint');
+});
