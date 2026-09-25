@@ -1,9 +1,10 @@
 // Places the baked sprite textures (src/art) on sim entities each frame.
 // Render-only: it reads entity state and never changes it. Gameplay size,
 // collision and picking all come from the sim, never from these images.
-import { ART_SCALE, unitKey, ringKey, RING_R } from '../art/atlas.js';
+import { ART_SCALE, unitKey, ringKey, buildingKey, RING_R } from '../art/atlas.js';
+import { stateOf } from '../art/buildings.js';
 
-const DEPTH = { ring: 2.5, unit: 3 };
+const DEPTH = { building: 2, ring: 2.5, unit: 3 };
 const FLASH = 0.09; // s a unit shows white after being hit
 // Zoomed out, unit sprites are drawn up to 1.6x larger so they stay legible
 // (visual only: collision and picking use the sim's radius).
@@ -13,10 +14,28 @@ export class SpriteLayer {
   constructor(scene) {
     this.scene = scene;
     this.units = new Map(); // id -> { img, ring, key }
+    this.buildings = new Map(); // id -> { img, key }
+  }
+
+  // One image per building, in its construction state (foundation/frame/complete).
+  syncBuildings(world) {
+    const seen = new Set();
+    for (const b of world.ofKind('building')) {
+      seen.add(b.id);
+      const key = buildingKey(b.type, b.team, stateOf(b));
+      let s = this.buildings.get(b.id);
+      if (!s) {
+        s = { img: this.scene.add.image(b.x, b.y, key).setDepth(DEPTH.building).setScale(1 / ART_SCALE), key };
+        this.buildings.set(b.id, s);
+      }
+      if (s.key !== key) { s.img.setTexture(key); s.key = key; }
+    }
+    for (const [id, s] of this.buildings) if (!seen.has(id)) { s.img.destroy(); this.buildings.delete(id); }
   }
 
   // alpha: interpolation between the previous and current sim step.
   sync(world, alpha) {
+    this.syncBuildings(world);
     const seen = new Set();
     const boost = unitBoost(this.scene.cameras.main.zoom);
     for (const u of world.ofKind('unit')) {

@@ -1,5 +1,5 @@
 import { SIM_DT } from '../sim/constants.js';
-import { drawTerrain, drawNode, drawBuilding, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
+import { drawTerrain, drawNode, drawProgress, drawSelection, drawMarker, drawGhost, drawHealth, drawCrosshair, TEAM_COLORS } from './draw.js';
 import { InputController } from './input.js';
 import { Effects } from './effects.js';
 import { MatchStats } from './stats.js';
@@ -139,7 +139,7 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     under.clear();
     for (const n of w.ofKind('node')) drawNode(under, n, w.time);
-    for (const b of w.ofKind('building')) drawBuilding(under, b, TEAM_COLORS[b.team]);
+    for (const b of w.ofKind('building')) if (!b.built) drawProgress(g, b);
     this.sprites.sync(w, alpha);
     const sel = this.ui.selection;
     for (const b of w.ofKind('building')) if (sel.has(b.id)) drawSelection(g, b, b.x, b.y);
