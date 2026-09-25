@@ -59,6 +59,7 @@ function start(mode) {
     world = new World({ seed, PF: globalThis.PF, setup: 'start' });
   }
   const hud = new Hud();
+  const touch = setupInputMode(); // Phase 4: touch chrome when the device is touch-first
   const sfx = new Sfx();
   const scene = new GameScene(world, hud, sfx, match ? () => match.step() : () => world.step());
   hud.setOpponent(match ? { difficulty: DIFFICULTY[difficulty].name, strategy: STRATEGIES[match.ai.strategyId].name } : null);
@@ -83,11 +84,36 @@ function start(mode) {
     banner: false,
   });
 
+  touch.onChange((on) => { scene.touchMode = on; });
+  scene.touchMode = touch.on;
+  hud.bindTouchBar(() => scene.ui, scene);
   const tutorial = startTutorial(sfx, !!match);
   setInterval(() => { if (scene.ui && !world.result) tutorial.update(world, scene.ui); }, 250);
 
   // Handle for e2e tests and debugging.
   window.__game = { world, scene, game, sfx, match, tutorial };
+}
+
+// Touch mode: on for coarse-pointer devices or after the first touch, or forced
+// with ?input=touch / ?input=mouse. Both input schemes always work; this only
+// decides whether the touch chrome (action bar, bigger targets) is shown.
+function setupInputMode() {
+  const forced = params.get('input');
+  const listeners = [];
+  const state = {
+    on: forced === 'touch' || (forced !== 'mouse' && !!globalThis.matchMedia?.('(pointer: coarse)').matches),
+    onChange(fn) { listeners.push(fn); },
+  };
+  const apply = () => {
+    document.body.classList.toggle('touch', state.on);
+    document.getElementById('touchbar').hidden = !state.on;
+    for (const fn of listeners) fn(state.on);
+  };
+  if (forced !== 'mouse') {
+    addEventListener('touchstart', () => { if (!state.on) { state.on = true; apply(); } }, { capture: true, passive: true });
+  }
+  apply();
+  return state;
 }
 
 // The first-run hint panel (see tutorial.js); Help brings it back.

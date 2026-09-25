@@ -54,6 +54,27 @@ export class Hud {
     this.lastRefresh = 0;
   }
 
+  // Touch action bar (Phase 4): buttons call the same InputController methods.
+  bindTouchBar(getUi, scene, doc = document) {
+    this.touchbar = doc.getElementById('touchbar');
+    this.touchbar.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-touch]');
+      const ui = getUi();
+      if (!btn || !ui || btn.disabled) return;
+      const act = btn.dataset.touch;
+      if (act === 'box') ui.armBox();
+      else if (act === 'base') scene.centerOnCore();
+    });
+  }
+
+  updateTouchBar(ui) {
+    if (!this.touchbar || this.touchbar.hidden) return;
+    for (const b of this.touchbar.querySelectorAll('button[data-touch]')) {
+      const act = b.dataset.touch;
+      b.classList.toggle('armed', act === 'box' ? ui.boxArmed : ui.armed === act);
+    }
+  }
+
   setOpponent(opp, doc = document) {
     this.opponent = opp;
     if (opp) doc.getElementById('opponent').textContent = `vs AI · ${opp.difficulty}`;
@@ -110,6 +131,7 @@ export class Hud {
     if (!ui) return;
     this.ui = ui;
     this.updateGroups(world, ui);
+    this.updateTouchBar(ui);
     // Only touch the DOM when content changes, so buttons stay clickable.
     const sel = ui.selection.entities(world);
     const html = this.selectionHtml(world, sel);
