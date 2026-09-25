@@ -622,12 +622,17 @@ export class AiEngine {
     }
     // A wave leaves when the army at home reaches the unit-count threshold, or
     // (for strategies that build up) the army-supply threshold.
-    const need = this.stats.waves === 0 ? s.firstWave : s.wave;
-    const needSupply = this.stats.waves === 0 ? s.firstWaveSupply : s.waveSupply;
+    // Each wave's size threshold varies by +/- waveJitter (the engine's own
+    // seeded RNG), so wave timing isn't one fixed, exploitable moment.
+    this.waveFactor ??= 1 + (s.waveJitter || 0) * (2 * this.rng.next() - 1);
+    const need = (this.stats.waves === 0 ? s.firstWave : s.wave) * this.waveFactor;
+    const baseSupply = this.stats.waves === 0 ? s.firstWaveSupply : s.waveSupply;
+    const needSupply = baseSupply == null ? null : baseSupply * this.waveFactor;
     const homeSupply = home.reduce((n, u) => n + UNITS[u.type].supply, 0);
     const ready = needSupply != null ? homeSupply >= needSupply : home.length >= need;
     if (!threats.length && ready) {
       this.mode = 'attack';
+      this.waveFactor = null; // the next wave draws a new threshold
       this.waveSize = home.length;
       this.stats.waves++;
       this.note(`wave ${this.stats.waves}: ${home.length} units attack`);
