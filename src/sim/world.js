@@ -12,6 +12,7 @@ import { updateProduction } from './production.js';
 import { updateCombat } from './combat.js';
 import { separate } from './steering.js';
 import { checkResult } from './victory.js';
+import { SpatialIndex } from './spatial.js';
 
 // The headless game state. No Phaser/DOM here: the renderer reads entities,
 // and everything that changes the world goes through issue(cmd).
@@ -33,6 +34,7 @@ export class World {
     this.events = []; // drained by the renderer/audio each frame
 
     this.pathfinder = new Pathfinder(this.grid, PF);
+    this.spatial = new SpatialIndex();
     for (const [x, y, w, h] of map.rocks) this.grid.setRock(x, y, w, h);
     for (const [tx, ty] of map.nodes) this.addNode(tx, ty, map.nodeAmount);
     if (setup === 'start' || setup === 'match') this.setupStart(map.start);
@@ -119,6 +121,7 @@ export class World {
     if (this.result) return; // the match is decided: the world is frozen
     const units = [...this.ofKind('unit')];
     for (const u of units) { u.px = u.x; u.py = u.y; }
+    this.spatial.rebuild(this); // enemy scans this tick use the index
     for (const u of units) thinkUnit(this, u, SIM_DT);
     separate(this);
     updateConstruction(this, SIM_DT);

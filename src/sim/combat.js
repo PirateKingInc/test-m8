@@ -22,16 +22,19 @@ export function damageRoll(world, weapon, target) {
   return weapon.damage * DAMAGE_MULTIPLIERS[weapon.attack][armorOf(target)] * k;
 }
 
-// Nearest enemy within `range` gap; units are preferred over buildings.
+// Nearest enemy within `range` gap; units are preferred over buildings, and ties go
+// to the lowest id (exactly what a brute-force scan in id order picks). Uses the
+// per-tick spatial index, so each scan only looks at nearby cells.
 export function findEnemy(world, e, range) {
   let best = null, bestScore = Infinity;
-  for (const t of world.entities.values()) {
-    if (!isEnemy(e, t)) continue;
+  const own = e.kind === 'unit' ? e.radius : Math.hypot(e.pw, e.ph) / 2;
+  world.spatial.query(e.x, e.y, range + own, (t) => {
+    if (!isEnemy(e, t) || !world.entities.has(t.id)) return;
     const d = gap(e, t);
-    if (d > range) continue;
+    if (d > range) return;
     const score = d + (t.kind === 'building' ? 10000 : 0);
-    if (score < bestScore) { bestScore = score; best = t; }
-  }
+    if (score < bestScore || (score === bestScore && t.id < best.id)) { bestScore = score; best = t; }
+  });
   return best;
 }
 
