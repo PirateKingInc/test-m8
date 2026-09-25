@@ -12,17 +12,43 @@ export class Pathfinder {
     this.searches = 0;
   }
 
-  pfGrid() {
-    if (this.baseVersion !== this.grid.version) {
-      this.base = new this.PF.Grid(this.grid.cols, this.grid.rows, this.grid.toMatrix());
-      this.baseVersion = this.grid.version;
+  // A search-ready PathFinding.js grid. Instead of cloning 4800 nodes per search
+  // (the old approach, a large share of match CPU time and GC), one working grid
+  // is kept and each node's search fields are reset to undefined, exactly the
+  // state of a fresh clone. It is rebuilt only when walkability changes.
+  //
+  // Mirror symmetry: queries that start in the east half run in a mirrored frame
+  // (x -> cols-1-x) so A*'s fixed neighbour order, the flood fill and the
+  // clearance sampling treat both halves of the map identically.
+  pfGrid(g = this.frame) {
+    const key = g.mirrored ? 'm' : 'n';
+    const c = (this.cache ||= {})[key] ||= { version: -1 };
+    if (c.version !== this.grid.version) {
+      c.base = new this.PF.Grid(g.cols, g.rows, g.toMatrix());
+      c.nodes = c.base.nodes.flat();
+      c.version = this.grid.version;
     }
-    return this.base.clone();
+    for (const n of c.nodes) n.opened = n.closed = n.parent = n.g = n.h = n.f = undefined;
+    return c.base;
+  }
+
+  // The grid as seen from the mirrored frame (same interface as Grid for reads).
+  mirrorView() {
+    const grid = this.grid;
+    if (this.mirror) return this.mirror;
+    const view = Object.create(grid); // inherits tile, rows, cols, tileOf, center, spiral...
+    view.mirrored = true;
+    view.isWalkable = (tx, ty) => grid.isWalkable(grid.cols - 1 - tx, ty);
+    view.toMatrix = () => grid.toMatrix().map((row) => row.slice().reverse());
+    view.nearestWalkable = function (tx, ty, maxR) { for (const t of this.spiral(tx, ty, maxR)) return t; return null; };
+    this.mirror = view;
+    return view;
   }
 
   // Nearest tile to (gx,gy) that is reachable from (sx,sy), via flood fill.
   nearestReachable(sx, sy, gx, gy) {
-    const g = this.grid, seen = new Uint8Array(g.cols * g.rows);
+    const g = this.frame, seen = new Uint8Array(g.cols * g.rows);
+    const dir = sx < g.cols / 2 ? 1 : -1; // Phase 1 order in the west half, mirrored in the east
     const queue = [[sx, sy]];
     seen[g.idx(sx, sy)] = 1;
     let best = null, bestD = Infinity;
@@ -30,7 +56,7 @@ export class Pathfinder {
       const [x, y] = queue[i];
       const d = (x - gx) ** 2 + (y - gy) ** 2;
       if (d < bestD) { bestD = d; best = { tx: x, ty: y }; }
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dy] of [[dir, 0], [-dir, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy;
         if (g.isWalkable(nx, ny) && !seen[g.idx(nx, ny)]) {
           seen[g.idx(nx, ny)] = 1;
@@ -45,7 +71,7 @@ export class Pathfinder {
   // centers is walkable. Wider than a plain line-of-sight check, so smoothed
   // paths keep units off rock corners instead of funnelling them along walls.
   clear(a, b) {
-    const g = this.grid, T = g.tile, CLEARANCE = 12;
+    const g = this.frame, T = g.tile, CLEARANCE = 12;
     const ax = (a[0] + 0.5) * T, ay = (a[1] + 0.5) * T, bx = (b[0] + 0.5) * T, by = (b[1] + 0.5) * T;
     const len = Math.hypot(bx - ax, by - ay);
     const nx = -(by - ay) / len, ny = (bx - ax) / len;
@@ -76,7 +102,16 @@ export class Pathfinder {
   // Waypoints in px from (x,y) toward (tx,ty). Blocked or unreachable goals resolve
   // to the nearest reachable tile. Returns null if the unit itself is boxed in.
   find(x, y, tx, ty) {
-    const g = this.grid;
+    const grid = this.grid, W = grid.cols * grid.tile;
+    const east = grid.tileOf(x, y).tx >= grid.cols / 2;
+    this.frame = east ? this.mirrorView() : grid;
+    if (!east) return this.findInFrame(x, y, tx, ty);
+    const pts = this.findInFrame(W - x, y, W - tx, ty);
+    return pts && pts.map((p) => ({ x: W - p.x, y: p.y }));
+  }
+
+  findInFrame(x, y, tx, ty) {
+    const g = this.frame;
     let s = g.tileOf(x, y);
     if (!g.isWalkable(s.tx, s.ty)) s = g.nearestWalkable(s.tx, s.ty, 3);
     if (!s) return null;

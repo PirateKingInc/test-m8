@@ -74,15 +74,21 @@ function push(world, a, b) {
       return;
     }
   }
-  // Two movers meeting roughly head-on both sidestep to their own right,
-  // so opposing streams flow past each other instead of deadlocking.
+  // Two movers meeting roughly head-on each sidestep *away from the side the
+  // other one is on*, so opposing streams flow past instead of deadlocking.
+  // Unlike a fixed "keep right" rule, this is symmetric under the map's
+  // east-west mirror (see BALANCE.md, side bias). Exactly aligned pairs (only
+  // in perfectly mirrored states) break the tie by id.
   if (aMoving && bMoving) {
     const ahx = Math.cos(a.facing), ahy = Math.sin(a.facing);
     const bhx = Math.cos(b.facing), bhy = Math.sin(b.facing);
     if (ahx * bhx + ahy * bhy < -0.3) {
       const k = overlap * 0.5;
-      tryMove(world, a, (-ahy * 0.7 - nx * 0.3) * k, (ahx * 0.7 - ny * 0.3) * k);
-      tryMove(world, b, (-bhy * 0.7 + nx * 0.3) * k, (bhx * 0.7 + ny * 0.3) * k);
+      // side = sign(heading x (self - other)); n points from a to b.
+      let sa = Math.sign(ahx * -ny - ahy * -nx), sb = Math.sign(bhx * ny - bhy * nx);
+      if (sa === 0 || sb === 0) { sa = 1; sb = 1; } // aligned: both turn the same way relative to their heading
+      tryMove(world, a, (-ahy * sa * 0.7 - nx * 0.3) * k, (ahx * sa * 0.7 - ny * 0.3) * k);
+      tryMove(world, b, (-bhy * sb * 0.7 + nx * 0.3) * k, (bhx * sb * 0.7 + ny * 0.3) * k);
       return;
     }
   }

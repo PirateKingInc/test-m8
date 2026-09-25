@@ -65,6 +65,7 @@ export class World {
   add(e) {
     e.id = this.nextId++;
     this.entities.set(e.id, e);
+    this.byKind = null;
     return e;
   }
 
@@ -101,6 +102,7 @@ export class World {
 
   removeEntity(e) {
     this.entities.delete(e.id);
+    this.byKind = null;
     if (e.kind !== 'unit') this.grid.setOccupant(e.tx, e.ty, e.w, e.h, 0);
   }
 
@@ -108,8 +110,14 @@ export class World {
     return this.entities.get(id);
   }
 
-  *ofKind(kind) {
-    for (const e of this.entities.values()) if (e.kind === kind) yield e;
+  // Entities of one kind in id order. Cached until the entity set changes; callers
+  // get a snapshot array (iterate or spread it, never mutate it).
+  ofKind(kind) {
+    if (!this.byKind) {
+      this.byKind = { unit: [], building: [], node: [] };
+      for (const e of this.entities.values()) (this.byKind[e.kind] ||= []).push(e);
+    }
+    return this.byKind[kind] || [];
   }
 
   issue(cmd) {

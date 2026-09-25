@@ -99,6 +99,7 @@ export class AiEngine {
   // around the building, so the AI never walls in its own units.
   placement(type, key) {
     const want = this.spot(key, type), def = BUILDINGS[type], g = this.w.grid;
+    const east = this.core().x > this.w.width / 2;
     const ringFree = (tx, ty) => {
       for (let y = ty - 1; y <= ty + def.h; y++) for (let x = tx - 1; x <= tx + def.w; x++) {
         const edge = x === tx - 1 || x === tx + def.w || y === ty - 1 || y === ty + def.h;
@@ -108,7 +109,8 @@ export class AiEngine {
     };
     for (const strict of [true, false]) {
       for (let r = 0; r <= 8; r++) {
-        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) for (let k = -r; k <= r; k++) {
+          const dx = east ? -k : k; // the east base searches in the mirror-image order
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
           const tx = want.tx + dx, ty = want.ty + dy;
           if (canPlace(this.w, type, tx, ty) && (!strict || ringFree(tx, ty))) return { tx, ty };
