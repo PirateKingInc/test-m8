@@ -342,8 +342,13 @@ export class AiEngine {
       this.pressAttack();
       return;
     }
+    // A wave leaves when the army at home reaches the unit-count threshold, or
+    // (for strategies that build up) the army-supply threshold.
     const need = this.stats.waves === 0 ? s.firstWave : s.wave;
-    if (!threats.length && home.length >= need) {
+    const needSupply = this.stats.waves === 0 ? s.firstWaveSupply : s.waveSupply;
+    const homeSupply = home.reduce((n, u) => n + UNITS[u.type].supply, 0);
+    const ready = needSupply != null ? homeSupply >= needSupply : home.length >= need;
+    if (!threats.length && ready) {
       this.mode = 'attack';
       this.waveSize = home.length;
       this.stats.waves++;
