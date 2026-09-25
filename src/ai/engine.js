@@ -125,11 +125,23 @@ export class AiEngine {
 
   // ---- decisions ----------------------------------------------------------
 
-  // Put every idle drone to work on the crystal nearest our base.
+  // Put every idle drone to work, spreading them over the crystals near our base
+  // (least-busy node first, nearest on ties) so a big economy isn't one queue.
   gatherIdle() {
     const idle = this.mine('unit', 'drone').filter((d) => d.order.type === 'idle');
-    const node = this.homeNode();
-    if (idle.length && node) this.issue({ type: 'gather', ids: idle.map((d) => d.id), node: node.id });
+    const core = this.core();
+    if (!idle.length || !core) return;
+    const nodes = [...this.w.ofKind('node')]
+      .map((n) => ({ n, d: Math.hypot(n.x - core.x, n.y - core.y) }))
+      .sort((a, b) => a.d - b.d).slice(0, 4);
+    if (!nodes.length) return;
+    const busy = new Map(nodes.map(({ n }) => [n.id, 0]));
+    for (const d of this.mine('unit', 'drone')) if (d.order.type === 'gather' && busy.has(d.order.node)) busy.set(d.order.node, busy.get(d.order.node) + 1);
+    for (const d of idle) {
+      const pick = nodes.reduce((a, b) => (busy.get(b.n.id) < busy.get(a.n.id) ? b : a));
+      busy.set(pick.n.id, busy.get(pick.n.id) + 1);
+      this.issue({ type: 'gather', ids: [d.id], node: pick.n.id });
+    }
   }
 
   trackConstruction() {
@@ -214,15 +226,27 @@ export class AiEngine {
     }
     for (const st of s.structures || []) {
       if (this.pendingBuild) break;
-      if (this.structureWanted(st)) { this.tryBuild(st.build, st.spot); break; }
+      if (this.structureWanted(st)) {
+        const have = this.mine('building', st.build).length;
+        this.tryBuild(st.build, st.spots[Math.min(have, st.spots.length - 1)]);
+        break;
+      }
     }
     // 4. Army from the composition weights, keeping Foundry queues short.
     const unit = this.nextArmyUnit();
     if (unit) this.tryTrain(unit, ARMY.maxFoundryQueue);
   }
 
-  // Overridden by later slices' structure rules; none by default.
-  structureWanted() { return false; }
+  // A strategy structure rule: { build, spots, max, minDrones?, armyPer? }. Wanted
+  // while we have fewer than `max`, enough Drones, and (armyPer) at least
+  // armyPer combat units per existing building of that type.
+  structureWanted(st) {
+    const have = this.mine('building', st.build).length;
+    if (have >= st.max) return false;
+    if (st.minDrones && this.mine('unit', 'drone').length < st.minDrones) return false;
+    if (st.armyPer && this.army().length < st.armyPer * have) return false;
+    return this.lumen() >= BUILDINGS[st.build].cost;
+  }
 
   // The composition type furthest below its target share (counting living and
   // queued units), so production follows the weights without any randomness.

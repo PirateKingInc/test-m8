@@ -5,8 +5,8 @@
 // Build spots are tile offsets from the team's own Command Core top-left, written
 // for the west base; the engine mirrors them for the east base.
 export const SPOTS = {
-  depot: [9, -1], depot2: [9, 5], depot3: [2, -6],
-  foundry: [6, 5], foundry2: [2, 8],
+  depot: [9, -1], depot2: [9, 5], depot3: [2, -6], depot4: [5, 10], depot5: [-3, -5],
+  foundry: [6, 5], foundry2: [2, 8], foundry3: [6, -6],
   spire: [10, 4], spire2: [14, 0], spire3: [14, 6], spire4: [11, -4],
   core: [1, 7],
 };
@@ -53,6 +53,30 @@ export const STRATEGIES = {
     workerTarget: 0, // no macro loop: the opening is the whole script
     composition: {},
     noMacro: true,
+  },
+
+  boom: {
+    name: 'Economy-Boom',
+    description: 'Extra Depots and gathering early, delayed military, then out-produces late.',
+    opening: [
+      { train: 'drone' }, { train: 'drone' }, { build: 'depot' }, { train: 'drone' }, { train: 'drone' },
+      { build: 'depot', spot: 'depot2' }, { train: 'drone' }, { train: 'drone' }, { build: 'foundry' }, { train: 'drone' },
+    ],
+    workerTarget: 16,
+    supplyBuffer: 3,
+    depotSpots: ['depot', 'depot2', 'depot3', 'depot4', 'depot5'],
+    structures: [
+      { build: 'foundry', spots: ['foundry', 'foundry2', 'foundry3'], max: 2, minDrones: 12 },
+      { build: 'depot', spots: ['depot', 'depot2', 'depot3', 'depot4'], max: 3, minDrones: 14 },
+    ],
+    composition: { striker: 2, sparker: 2, bulwark: 1, lancer: 1 },
+    maxFoundries: 3, // late game: a third Foundry once Lumen floats
+    floatLumen: 600,
+    firstWave: 14,
+    wave: 10,
+    retreatBelow: 0.35,
+    reinforce: false,
+    scoutAt: 60,
   },
 
   // Fixed player-side script used by the strategy playthrough tests: a solid
