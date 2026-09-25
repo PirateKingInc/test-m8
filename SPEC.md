@@ -326,7 +326,10 @@ the player still sees the whole map, as PROJECT.md requires.
   - within **7 tiles (224 px)** of any of its own units, including one **scout
     Drone** that walks to the enemy start at the time in the strategy table and
     then returns to mining.
-- It remembers each sighting (type, position, time) for **90 s**.
+- It remembers each sighting (type, position, time) for **90 s**, including
+  units that have since died: "the enemy fielded six Strikers" is still true.
+- The scan uses plain loops over entities. It never queries the sim's spatial
+  index, which writes bookkeeping onto entities.
 - From that memory it derives: the enemy combat units seen by type, the enemy
   buildings known, and the enemy units currently near its base.
 
@@ -334,8 +337,20 @@ the player still sees the whole map, as PROJECT.md requires.
 
 | Trigger | Condition | Reaction |
 |---|---|---|
-| **Early aggression** | Before **5:00**, at least **2** enemy combat units inside base watch | Enter **defend** mode: cancel the wave, attack-move the army to the threat, bias production 70% toward counters of the attacking types, and queue 1 Spire (Turtle: 2) if the team has none. Defend mode ends after **20 s** with no enemy near the base. |
-| **Massing** | An enemy combat type with at least **4** seen *and* at least **40%** of the enemy army seen | **Counter composition:** 70% of new production goes to that type's counter from the Phase 1 table. It lasts until the condition clears. |
+| **Early aggression** | Before **5:00**, at least **2** enemy combat units inside base watch | Enter **defend** mode: recall any wave, attack-move the army to the threat, bias production 70% toward counters of the attacking types, and build Spires up to 1 (Turtle: 2) as an *urgent* build, alongside any other construction. Defend mode ends after **20 s** with no enemy near the base. |
+| **Massing** | An enemy combat type with at least **5** seen *and* a **majority (≥ 50%)** of the enemy army seen. A balanced army never trips it. | **Counter composition:** 70% of new production goes to that type's counter from the Phase 1 table. It lasts until the condition clears. |
+
+A trigger takes effect only after its condition has **held for the
+difficulty's reaction delay**. A raid wiped out faster than that isn't treated
+as a rush.
+
+The thresholds were first 4 seen and 40%. Playthroughs showed the scout Drone's
+partial view of a balanced army tripping that repeatedly, and swinging
+production away from the plan, so they were raised to the values above. All
+thresholds live in `SCOUTING` in `src/data/strategies.js`.
+
+Fixed player-side test scripts (`sentinel`) set `scouting: false`, so they
+never adapt.
 
 Counter picks (from the PROJECT.md counter table):
 - Striker is countered by Bulwark (with Sparker).
@@ -376,10 +391,11 @@ the default above), or play the Phase 1 **Sandbox** with no opponent.
 
 1. **Regression:** every Phase 1 test still passes, and the sandbox bot test
    now runs through the AI engine.
-2. **Playthroughs:** each strategy plays a full match against a fixed
-   player-side script in CI. It completes its opening, trains an army, launches
-   at least one attack wave and reaches the enemy base, and the match ends with
-   a declared result.
+2. **Playthroughs:** each strategy plays a full match against the fixed
+   `sentinel` script in CI, through the read-only guard. It completes its
+   opening, trains an army, launches waves that cross into the enemy half and
+   engage, and the match ends with a declared result. Separately, each strategy
+   marches on an undefended base and wins by destroying the Command Core.
 3. **Scouting:** scripted scenarios trigger early aggression and massing for
    each unit type, and the tests assert the branch taken.
 4. **Supply:** both teams are capped identically, and Depots raise the cap (to

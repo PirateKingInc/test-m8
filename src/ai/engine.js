@@ -11,7 +11,8 @@
 // - No Phaser, no DOM, no direct state mutation, no cheating.
 import { BUILDINGS } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
-import { STRATEGIES, SPOTS, ARMY } from '../data/strategies.js';
+import { STRATEGIES, SPOTS, ARMY, SCOUTING } from '../data/strategies.js';
+import { Scout } from './scout.js';
 import { DIFFICULTY } from '../data/difficulty.js';
 import { canPlace } from '../sim/construction.js';
 import { supplyOf } from '../sim/supply.js';
@@ -23,7 +24,9 @@ export const ALLOWED_COMMANDS = new Set([
   'gather', 'returnCargo', 'move', 'stop', 'attack', 'attackMove',
 ]);
 
-export const COMBAT_TYPES = ['striker', 'sparker', 'bulwark', 'lancer'];
+import { COMBAT_TYPES } from './engine-types.js';
+
+export { COMBAT_TYPES };
 
 export class AiEngine {
   // world: the real World (only its issue() is used); opts.view: what the engine
@@ -41,12 +44,17 @@ export class AiEngine {
     this.nextStepAt = 0; // game time before which the next opening step waits (stepDelay)
     this.nextThinkAt = 0;
     this.pendingBuild = null;
-    this.stats = { commands: 0, rejected: 0, built: {}, trained: {}, waves: 0, reachedEnemyBase: false, coreAssaults: 0 };
+    this.stats = { commands: 0, rejected: 0, built: {}, trained: {}, waves: 0, reachedEnemySide: false, engaged: false, reachedEnemyBase: false, coreAssaults: 0 };
     this.mode = 'gather'; // army state: gather | attack
     this.wave = []; // ids of the units in the current attack wave
     this.waveSize = 0;
     this.rallySet = new Set();
-    this.depotsPlaced = 0;
+    this.scout = new Scout(this);
+    this.defending = null; // { since, lastThreat, attackers: Set } while in defend mode
+    this.counterFor = null; // enemy unit type we are countering (massing trigger)
+    this.pendingEarly = null; // when an early-aggression condition was first seen
+    this.pendingMass = null; // { type, at } when a massing condition was first seen
+    this.reactions = []; // { t, kind, detail } for tests and the result screen
   }
 
   // ---- acting -------------------------------------------------------------
@@ -165,8 +173,9 @@ export class AiEngine {
     }
   }
 
-  tryBuild(type, key = type) {
-    if (this.pendingBuild || this.lumen() < BUILDINGS[type].cost) return false;
+  // One construction at a time, unless `urgent` (a defend reaction's Spire).
+  tryBuild(type, key = type, urgent = false) {
+    if ((this.pendingBuild && !urgent) || this.lumen() < BUILDINGS[type].cost) return false;
     const at = this.placement(type, key);
     const drones = this.mine('unit', 'drone');
     if (!at || !drones.length) return false;
@@ -219,6 +228,12 @@ export class AiEngine {
     const core = this.mine('building', 'core').find((b) => b.built);
     const target = Math.floor(s.workerTarget * this.d.workerFactor);
     if (core && core.queue.length === 0 && this.mine('unit', 'drone').length < target) this.tryTrain('drone', 1);
+    // Defend mode: make sure we have the Spires the reaction calls for.
+    if (this.defending) {
+      const want = this.s.defendSpires ?? SCOUTING.defendSpires;
+      const have = this.mine('building', 'spire').length;
+      if (have < want && this.tryBuild('spire', have ? 'spire2' : 'spire', true)) return;
+    }
     // 3. More production when Lumen piles up, then strategy-specific structures.
     const foundries = this.mine('building', 'foundry').length;
     if (!this.pendingBuild && foundries < (s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
@@ -248,9 +263,75 @@ export class AiEngine {
     return this.lumen() >= BUILDINGS[st.build].cost;
   }
 
+  // ---- scouting-triggered reactions (SPEC.md Phase 2) -----------------------
+
+  react(kind, detail) {
+    this.reactions.push({ t: this.w.time, kind, detail });
+    this.note(`${kind}${detail ? `: ${detail}` : ''}`);
+  }
+
+  // Each trigger only takes effect once its condition has held for the
+  // difficulty's reactionDelay, so easier tiers react late.
+  evaluateTriggers() {
+    const cfg = SCOUTING, now = this.w.time, delay = this.d.reactionDelay;
+    const intruders = this.scout.intrudersSeen();
+    if (!this.defending) {
+      if (now < cfg.earlyWindow && intruders.length >= cfg.earlyAggroUnits) {
+        this.pendingEarly ??= now;
+        if (now - this.pendingEarly >= delay) {
+          this.defending = { since: now, lastThreat: now, attackers: new Set(intruders.map((m) => m.type)) };
+          this.pendingEarly = null;
+          this.react('early-aggression', `${intruders.length} enemy units at the base: defend`);
+        }
+      } else this.pendingEarly = null;
+    } else if (intruders.length) {
+      this.defending.lastThreat = now;
+      for (const m of intruders) this.defending.attackers.add(m.type);
+    } else if (now - this.defending.lastThreat >= cfg.defendClear) {
+      this.defending = null;
+      this.react('defend-end');
+    }
+
+    const seen = this.scout.seenArmy();
+    const total = Object.values(seen).reduce((a, b) => a + b, 0);
+    let massed = null;
+    for (const [type, n] of Object.entries(seen)) {
+      if (n >= cfg.massMin && n / total >= cfg.massShare && (!massed || n > seen[massed])) massed = type;
+    }
+    if (massed && massed !== this.counterFor) {
+      if (this.pendingMass?.type !== massed) this.pendingMass = { type: massed, at: now };
+      if (now - this.pendingMass.at >= delay) {
+        this.counterFor = massed;
+        this.pendingMass = null;
+        this.react('massing', `${seen[massed]} ${massed} seen: counter with ${cfg.counters[massed].join('/')}`);
+      }
+    } else if (!massed) {
+      this.pendingMass = null;
+      if (this.counterFor) { this.counterFor = null; this.react('massing-end'); }
+    }
+  }
+
+  // Composition weights after reactions: counterShare of production goes to the
+  // counters (primary weighted 2:1 over secondary) of whatever we're reacting to.
+  composition() {
+    const base = this.s.composition;
+    const against = this.defending ? [...this.defending.attackers] : this.counterFor ? [this.counterFor] : [];
+    if (!against.length) return base;
+    const counter = {};
+    for (const t of against) {
+      const picks = SCOUTING.counters[t] || [];
+      picks.forEach((c, i) => { counter[c] = (counter[c] || 0) + (i === 0 ? 2 : 1); });
+    }
+    const bsum = Object.values(base).reduce((a, b) => a + b, 0) || 1;
+    const csum = Object.values(counter).reduce((a, b) => a + b, 0);
+    const out = {};
+    for (const [t, w] of Object.entries(base)) out[t] = (w / bsum) * (1 - SCOUTING.counterShare);
+    for (const [t, w] of Object.entries(counter)) out[t] = (out[t] || 0) + (w / csum) * SCOUTING.counterShare;
+    return out;
+  }
+
   // The composition type furthest below its target share (counting living and
   // queued units), so production follows the weights without any randomness.
-  composition() { return this.s.composition; }
 
   nextArmyUnit() {
     const weights = this.composition();
@@ -321,6 +402,20 @@ export class AiEngine {
     this.wave = [...inWave];
     const home = army.filter((u) => !inWave.has(u.id));
 
+    // Defend mode (early-aggression trigger): recall any wave and send the whole
+    // army at the threat; no new waves until it ends.
+    if (this.defending) {
+      const seen = this.scout.intrudersSeen();
+      const at = seen[0] || this.intruders()[0];
+      if (this.mode === 'attack') { this.mode = 'gather'; this.wave = []; this.note('wave recalled to defend'); }
+      const free = army.filter((u) => u.order.type !== 'attack' && !(u.order.type === 'attackMove' && at && Math.hypot(u.order.x - at.x, u.order.y - at.y) < 64));
+      if (at && free.length) this.issue({ type: 'attackMove', ids: free.map((u) => u.id), x: at.x, y: at.y });
+      else if (!at) {
+        const idleAway = army.filter((u) => u.order.type === 'idle' && !this.nearBase(u.x, u.y));
+        if (idleAway.length) this.issue({ type: 'move', ids: idleAway.map((u) => u.id), ...rally });
+      }
+      return;
+    }
     // Defense: idle units at home go after intruders.
     const threats = this.intruders();
     if (threats.length) {
@@ -369,8 +464,10 @@ export class AiEngine {
     const units = this.wave.map((id) => this.w.get(id)).filter(Boolean);
     if (!units.length) return;
     const cx = units.reduce((a, u) => a + u.x, 0) / units.length, cy = units.reduce((a, u) => a + u.y, 0) / units.length;
-    const start = this.enemyStart();
+    const start = this.enemyStart(), mid = this.w.width / 2;
+    if ((start.x < mid) === (cx < mid)) this.stats.reachedEnemySide = true;
     if (Math.hypot(cx - start.x, cy - start.y) < ARMY.homeRadius) this.stats.reachedEnemyBase = true;
+    if (units.some((u) => u.order.type === 'attack' || (u.order.type === 'attackMove' && u.order.target))) this.stats.engaged = true;
     if (!core) return;
     const near = units.filter((u) => Math.hypot(u.x - core.x, u.y - core.y) < ARMY.coreAssault + core.pw);
     if (!near.length) {
@@ -394,6 +491,7 @@ export class AiEngine {
     this.gatherIdle();
     const opened = this.runOpening();
     if (this.s.noMacro) return; // the Phase 1 sandbox script is opening-only
+    if (this.s.scouting !== false && this.scout.update()) this.evaluateTriggers();
     if (opened) this.macro();
     this.commandArmy();
   }
