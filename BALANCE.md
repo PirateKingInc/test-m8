@@ -234,8 +234,8 @@ measured and rejected: they moved Rush-vs-Turtle and Boom-vs-Turtle together.
 In the final matrix, **86 of 1,800 games (4.8%)** reached the 30:00 limit and
 were decided on score. The baseline had 5.
 
-- **Where.** Mostly mirror and Boom/Turtle games: 36 mirror games, 20
-  Boom-vs-Turtle and 30 involving Rush, spread across all three tiers. Once
+- **Where.** Mostly mirror and Boom/Turtle games: 53 mirror games (Boom and Turtle mirrors), 20
+  Boom-vs-Turtle and 13 involving Rush, spread across all three tiers. Once
   every field is mined out, both economies stall and neither army can finish
   the other.
 - **Side.** Score decided 38 for the west and 48 for the east, which is 44%
