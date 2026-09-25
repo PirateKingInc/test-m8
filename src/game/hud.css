@@ -116,3 +116,46 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
   background-repeat: no-repeat; background-position: bottom; animation: holdfill 0.5s linear forwards; }
 #groups button.assigned { border-color: #7dffb0; box-shadow: 0 0 10px #7dffb0; }
 body.touch #groups button { width: 40px; height: 40px; }
+/* ---- Phase 4: clarity and small screens ---- */
+#selection-panel .hint { color: #ffe9a6; font-size: 12px; margin-top: 3px; }
+#sound { pointer-events: auto; cursor: pointer; }
+.result-card { max-width: 92vw; box-sizing: border-box; }
+.menu-card { min-width: 0; width: 420px; }
+@media (max-height: 520px), (max-width: 640px) {
+  #hud-top { gap: 10px; font-size: 12px; padding: 0 8px; }
+  #hud-top .brand, #opponent, #fps { display: none; }
+  #hud-top b { font-size: 15px; }
+  #hud-bottom { height: 88px; padding: 4px 8px; gap: 8px; }
+  #selection-panel { font-size: 12px; }
+  .sel-name { font-size: 13px; margin-bottom: 1px; }
+  #command-card { grid-template-columns: repeat(4, 58px); grid-auto-rows: 38px; gap: 3px; }
+  #groups { bottom: 94px; left: 8px; }
+  #toast { bottom: 140px; font-size: 13px; max-width: 80vw; text-align: center; }
+  #tutorial { width: 260px; top: 32px; padding: 6px 10px; }
+  #tutorial p { font-size: 12px; }
+  #armed-banner { font-size: 12px; top: 32px; }
+  #hud-top > * { white-space: nowrap; }
+  .result-card { padding: 16px 18px; }
+  .result-card h1 { font-size: 30px; }
+  #menu { align-items: flex-start; overflow-y: auto; }
+  .menu-card { margin: 12px 0; }
+}
+@media (max-height: 520px) {
+  body.touch #groups button:nth-child(n+7) { display: none; } /* 1-6 fit above the bottom panel */
+  #tutorial { max-height: 34vh; overflow: hidden; }
+  /* Landscape phone: the banner sits between the tutorial panel and the action bar. */
+  #armed-banner { left: 300px; right: 128px; transform: none; max-width: none; }
+}
+body.touch #command-card .key { display: none; } /* no keyboard on a phone */
+@media (max-width: 640px) {
+  /* Portrait phone: selection above the command card, a row of group slots
+     just above that, the action bar top-right and the banner beside it. */
+  #hud-top { gap: 8px; }
+  #units-readout { display: none; } /* Lumen and supply are what matter on a narrow screen */
+  #hud-bottom { height: 112px; flex-direction: column; }
+  #command-card { grid-template-columns: repeat(4, 1fr); }
+  #groups { bottom: 118px; left: 6px; }
+  body.touch #groups button { width: 36px; height: 36px; }
+  #tutorial { top: auto; bottom: 162px; left: 8px; right: 8px; width: auto; }
+  #armed-banner { top: 36px; left: 8px; right: 128px; transform: none; max-width: none; }
+}

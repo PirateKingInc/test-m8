@@ -98,14 +98,17 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(now - (this.lastNow ?? now), 250) / 1000;
     this.lastNow = now;
     this.panCamera(dt);
-    this.acc += dt;
+    // ?speed=N runs the (unchanged) sim N times faster: for demos and the
+    // mobile playthrough test. The sim still advances in fixed SIM_DT steps.
+    const speed = this.speed || 1, maxSteps = MAX_STEPS_PER_FRAME * speed;
+    this.acc += dt * speed;
     let steps = 0;
-    while (this.acc >= SIM_DT && steps < MAX_STEPS_PER_FRAME) {
+    while (this.acc >= SIM_DT && steps < maxSteps) {
       this.stepSim();
       this.acc -= SIM_DT;
       steps++;
     }
-    if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
+    if (steps === maxSteps) this.acc = 0;
     const events = this.world.drainEvents();
     if (events.length) {
       const mid = this.cameras.main.midPoint;

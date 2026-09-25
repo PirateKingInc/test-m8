@@ -86,8 +86,14 @@ function start(mode) {
 
   touch.onChange((on) => { scene.touchMode = on; });
   scene.touchMode = touch.on;
+  hud.touchMode = touch.on;
+  hud.setMuted(sfx.muted); // wording depends on the input mode
+  touch.onChange((on) => { hud.touchMode = on; hud.setMuted(sfx.muted); });
+  scene.speed = Math.min(16, Math.max(1, Math.round(Number(params.get('speed')) || 1)));
   hud.bindTouchBar(() => scene.ui, scene);
-  const tutorial = startTutorial(sfx, !!match);
+  const tutorial = startTutorial(sfx, !!match, touch.on ? 'touch' : 'mouse');
+  touch.onChange((on) => tutorial.setMode(on ? 'touch' : 'mouse'));
+  hud.onSoundTap = () => hud.setMuted(sfx.toggleMute());
   setInterval(() => { if (scene.ui && !world.result) tutorial.update(world, scene.ui); }, 250);
 
   // Handle for e2e tests and debugging.
@@ -117,7 +123,7 @@ function setupInputMode() {
 }
 
 // The first-run hint panel (see tutorial.js); Help brings it back.
-function startTutorial(sfx, isMatch) {
+function startTutorial(sfx, isMatch, mode) {
   const panel = document.getElementById('tutorial');
   const render = (v) => {
     panel.hidden = !v;
@@ -126,11 +132,11 @@ function startTutorial(sfx, isMatch) {
     document.getElementById('tutorial-text').innerHTML = v.text;
     document.getElementById('tutorial-skip').textContent = v.final ? 'Got it' : 'Skip';
   };
-  const tutorial = new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch });
+  const tutorial = new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch, mode });
   document.getElementById('tutorial-skip').addEventListener('click', () => tutorial.finish());
   document.getElementById('help').addEventListener('click', () => {
     Tutorial.reset();
-    Object.assign(tutorial, new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch }));
+    Object.assign(tutorial, new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch, mode: tutorial.mode }));
   });
   return tutorial;
 }

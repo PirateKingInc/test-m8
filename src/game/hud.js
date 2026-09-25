@@ -66,6 +66,7 @@ export class Hud {
     });
     // Tapping the under-attack alert jumps the camera there (Space on desktop).
     this.el.toast.addEventListener('click', () => { if (this.el.toast.classList.contains('alert')) this.onAlertTap?.(); });
+    this.el.sound.addEventListener('click', () => this.onSoundTap?.()); // no M key on a phone
     this.el.selection.addEventListener('click', (ev) => {
       const slot = ev.target.closest('[data-cancel]');
       if (slot) this.ui?.action(`cancel-train:${slot.dataset.cancel}`);
@@ -156,7 +157,9 @@ export class Hud {
   }
 
   setMuted(muted) {
-    this.el.sound.textContent = muted ? 'Sound off (M)' : 'Sound on (M)';
+    this.muted = muted;
+    const key = this.touchMode ? '' : ' (M)';
+    this.el.sound.textContent = muted ? `Sound off${key}` : `Sound on${key}`;
   }
 
   toast(text, { alert = false } = {}) {
@@ -229,19 +232,36 @@ export class Hud {
     return `<div class="queue">${e.queue.map((q, i) => `<button data-cancel="${i}" title="Cancel (full refund)">${UNITS[q.unit].name}${i === 0 ? '<i></i>' : ''}</button>`).join('')}</div>`;
   }
 
+  // One line saying what the current selection can do (Phase 4 clarity).
+  selectionHint(sel) {
+    const t = this.touchMode;
+    if (!sel.length) return t ? 'Tap a unit or building to select it. Drag to look around, pinch to zoom.' : 'Nothing selected. Left-click or drag to select; right-click to command.';
+    const e = sel[0];
+    if (e.kind === 'node') return 'Lumen crystal: Drones mine it for Lumen.';
+    if (e.team && e.team !== PLAYER) return t ? 'Enemy. Select your units, tap ➜ Order, then tap it to attack.' : 'Enemy. Select your units and right-click it to attack.';
+    if (e.kind === 'building' && !e.built) return 'Under construction: a Drone must stay next to it.';
+    if (e.kind === 'building') {
+      if (!BUILDINGS[e.type].trains.length) return e.type === 'spire' ? 'Sentry Spire: shoots enemies in range.' : 'Lumen Depot: Drones bring Lumen here.';
+      return t ? 'Tap a unit button to train · ➜ Order sets the rally point.' : 'Q–R to train · right-click to set the rally point.';
+    }
+    if (sel.some((u) => u.type === 'drone')) return t ? 'Tap a build button, or ➜ Order then a crystal to mine.' : 'Q–R to build · right-click a crystal to mine.';
+    return t ? '➜ Order: move or attack · ⚔ Attack: attack-move · hold a group slot to save.' : 'Right-click to move or attack · A to attack-move · Shift+1–9 saves a group.';
+  }
+
   selectionHtml(world, sel) {
-    if (!sel.length) return '<span class="dim">Nothing selected. Left-click or drag to select; right-click to command.</span>';
+    const hint = `<div class="hint">${this.selectionHint(sel)}</div>`;
+    if (!sel.length) return hint;
     if (sel.length === 1) {
       const e = sel[0];
       const stat = e.kind === 'node' ? `${Math.ceil(e.amount)} / ${e.maxAmount} Lumen`
         : `HP ${Math.ceil(e.hp)} / ${e.maxHp}${e.kind === 'unit' ? ` · ${e.order.type}` : ''}${e.carry ? ` · carrying ${e.carry}` : ''}`;
       const team = e.team && e.team !== PLAYER ? ' <span class="enemy">(test target team)</span>' : '';
       const building = e.kind === 'building' && !e.built ? ` · building ${Math.floor(e.progress * 100)}%` : '';
-      return `<div class="sel-name">${nameOf(e)}${team}</div><div class="dim">${stat}${building}</div>${this.queueHtml(e)}`;
+      return `<div class="sel-name">${nameOf(e)}${team}</div><div class="dim">${stat}${building}</div>${hint}${this.queueHtml(e)}`;
     }
     const counts = {};
     for (const e of sel) counts[nameOf(e)] = (counts[nameOf(e)] || 0) + 1;
-    return `<div class="sel-name">${sel.length} selected</div><div class="dim">${Object.entries(counts).map(([n, c]) => `${n} ×${c}`).join(' · ')}</div>`;
+    return `<div class="sel-name">${sel.length} selected</div><div class="dim">${Object.entries(counts).map(([n, c]) => `${n} ×${c}`).join(' · ')}</div>${hint}`;
   }
 }
 
