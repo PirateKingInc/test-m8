@@ -1,14 +1,60 @@
 # Prism Outpost
 
-A mini real-time strategy **sandbox** that runs in the browser. This is Phase 1 of 3.
-You can build a base, mine Lumen crystals, train units and fight test targets. There
-is no opponent yet; see [PROJECT.md](PROJECT.md) for the roadmap and scope.
+A mini real-time strategy game that runs in the browser. Build a base, mine Lumen
+crystals, train an army and **destroy the enemy Command Core** before the scripted
+AI opponent destroys yours. The Phase 1 **sandbox** (no opponent) is still available
+from the start screen. See [PROJECT.md](PROJECT.md) for the roadmap and scope; this
+is Phase 2 of 3.
 
 **Play:** https://piratekinginc.github.io/test-m8/ (desktop, mouse and keyboard)
 
 It's a static site with no build step. [Phaser 3](https://phaser.io) and
 [PathFinding.js](https://github.com/qiao/PathFinding.js) load from the jsDelivr CDN.
 All art is drawn in code, and all audio is synthesized with the Web Audio API.
+
+## Playing against the AI
+
+The start screen asks for a **difficulty** and, optionally, which **strategy** the AI
+plays (Auto uses the tier's default). Both sides play the same mirrored map with the
+same units, buildings, costs, build times, pathing and a **60-supply population
+cap**, so the AI gets no special treatment. You win by destroying the enemy's last
+completed **Command Core**, and you lose if yours falls. At **30:00** the match ends
+on score.
+
+| Difficulty | Default AI strategy | Script timing |
+|---|---|---|
+| Easy | Rush | decides every 2.5 s, +6 s after each opening step, reacts to scouting after 25 s, 70% of its worker target |
+| Normal | Turtle-and-Tech | every 1.2 s, +2 s per step, reacts after 10 s, 90% of workers |
+| Hard | Economy-Boom | every 0.5 s, no step delay, reacts after 3 s, full economy |
+
+Difficulty never makes the AI smarter or richer. It picks the script and how
+sharply that script is executed.
+
+### How the AI works
+
+- **Where it comes from.** The AI is the Phase 1 scripted test bot grown into an
+  execution engine (`src/ai/engine.js`).
+- **How it acts.** It reads the world and acts **only through `world.issue()`**,
+  the same command API the mouse and keyboard use. Its own team is stamped on
+  every command, and a whitelist excludes anything a player can't do. The tests
+  run whole matches with the AI holding a recursively *read-only* view of the
+  game, which fails on any direct state change.
+- **Strategies.** Each is a scripted sequence of build and train priorities with
+  simple branches. They live as data in `src/data/strategies.js`.
+  - **Rush:** a small economy, up to three Foundries of Strikers and Sparkers,
+    early continuous waves, and reinforcements in groups.
+  - **Economy-Boom:** extra Depots and Drones first, a second and then third
+    Foundry, a mixed army, a big first wave and retreats.
+  - **Turtle-and-Tech:** Sentry Spires on the base front (up to four), a
+    Bulwark/Lancer army, and it builds up to 36 army supply before attacking.
+- **Scouting and reactions** (`src/ai/scout.js`). The AI only knows what it sees:
+  enemies within 16 tiles of its buildings or 7 tiles of its units, plus one scout
+  Drone sent to your base. It remembers sightings for 90 s and reacts in two ways:
+  - An **early rush** (2+ of your combat units at its base before 5:00) sends it
+    into defend mode. It recalls its wave, fights at home, builds counters and adds
+    a Spire.
+  - **Massing** one unit type (5+ of it, and a majority of what it has seen) makes
+    70% of its production that type's counter from the counter table.
 
 ## Controls
 
@@ -27,6 +73,7 @@ All art is drawn in code, and all audio is synthesized with the Web Audio API.
 | Click a queue slot / **Backspace** | Cancel that item / the last queued item (100% refund) |
 | **X** | Cancel an unfinished building (75% refund) |
 | Arrow keys, screen edge, middle-drag | Pan the camera. **Home** recenters on the Core. |
+| **Space** | Jump the camera to where your base was last attacked |
 | **M** | Mute or unmute |
 | **\`** (backtick) | Dev panel. It spawns **test targets** and team-2 test units, for verification only. |
 
@@ -71,8 +118,13 @@ npm test             # headless sim tests (node --test)
 npm run test:e2e     # Playwright browser tests (npx playwright install chromium first)
 ```
 
-CI runs both on every push and PR. Every merge to `main` runs the tests, deploys to
-GitHub Pages, and polls the live URL until it serves that exact commit.
+```bash
+npm run test:fairness  # bot-vs-difficulty win rates (about 2.5 min, 108 full matches)
+```
+
+CI runs all three on every push and PR, with fairness as a parallel job. Every
+merge to `main` runs the tests, deploys to GitHub Pages, and polls the live URL
+until it serves that exact commit.
 
 | Suite | What it proves |
 |---|---|
@@ -81,6 +133,28 @@ GitHub Pages, and polls the live URL until it serves that exact commit.
 | `test/economy.test.js`, `test/production.test.js`, `test/construction.test.js` | The gather rate matches the spec formula, costs, build times, FIFO queues and refunds |
 | `test/counters.test.js` | Each counter row is checked with 50 seeded 1v1s (≥ 80% required, and each currently wins 100%) |
 | `test/selection.test.js`, `e2e/selection.spec.js`, `e2e/combat.spec.js` | Drag-box, control groups, formation moves, attack and attack-move |
-| `test/bot.test.js` | A scripted bot builds every building, trains one of each unit, and beats a squad of test targets |
+| `test/bot.test.js` | The Phase 1 sandbox bot (now a preset of the AI engine) builds every building, trains one of each unit, and beats a squad of test targets |
+| `test/supply.test.js` | Both teams are capped identically. Depots raise the cap to the max of 60, and queued production reserves supply. |
+| `test/match.test.js`, `e2e/match.spec.js` | Map symmetry. Destroying either Core ends the match with the right result screen; mutual loss is a draw; the time limit always decides. |
+| `test/spatial.test.js` | Enemy scanning via the spatial index matches brute force exactly. A 200-unit battle runs at about 1.8 ms per step. |
+| `test/ai.test.js` | The AI acts only through `world.issue()`, and five deliberately cheating AIs are caught by the read-only guard |
+| `test/playthrough.test.js` | Each strategy plays a full match against a fixed player script, and wins by destroying an undefended Core |
+| `test/scouting.test.js` | Early-rush and massing reactions for every unit type trigger when they should and not otherwise, within the AI's limited sight |
+| `test/difficulty.test.js`, `e2e/menu.spec.js` | Harder tiers execute the same script faster and react sooner. The start screen launches matches. |
+| `test/fairness/` | Scripted player policies vs every tier over 12 seeds (see below) |
+| `e2e/groups.spec.js` | Control groups without the browser's reserved Ctrl+1–8: Shift+digit, the HUD group bar, and Fullscreen with Keyboard Lock |
+
+### Fairness: can the AI be beaten?
+
+Three scripted player policies run on the same engine and play 12 fixed seeds
+against each tier. The sim is deterministic, so CI reproduces these exact numbers.
+
+| Player win rate | competent (Boom, Hard timing) | intermediate (Turtle, Easy timing) | novice (Rush, Easy timing) |
+|---|---|---|---|
+| vs **Easy** | 100% | 100% | 33% |
+| vs **Normal** | 83% | 83% | 0% |
+| vs **Hard** | 25% | 0% | 0% |
+
+A competent player beats every tier; Hard is a real fight, and a novice loses to all three.
 
 The headless tests load the exact PathFinding.js bundle the CDN serves, so they exercise the library build that ships.

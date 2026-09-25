@@ -7,6 +7,7 @@ const Phaser = globalThis.Phaser;
 const PAN_SPEED = 900; // px/s
 const EDGE = 14; // px from the canvas edge that triggers edge-panning
 const MAX_STEPS_PER_FRAME = 8; // avoid a spiral of death after a stall
+const UNDER_ATTACK_COOLDOWN = 15; // s of game time between under-attack alerts
 
 export class GameScene extends Phaser.Scene {
   // stepSim: advances one fixed step (the world alone in the sandbox, or the
@@ -38,6 +39,7 @@ export class GameScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
     this.keys = this.input.keyboard.addKeys('UP,DOWN,LEFT,RIGHT,HOME');
     this.keys.HOME.on('down', () => this.centerOnCore());
+    this.input.keyboard.on('keydown-SPACE', () => { if (this.lastAttack) this.cameras.main.centerOn(this.lastAttack.x, this.lastAttack.y); });
     this.pointerInside = false;
     this.game.canvas.addEventListener('mouseenter', () => { this.pointerInside = true; });
     this.game.canvas.addEventListener('mouseleave', () => { this.pointerInside = false; });
@@ -101,7 +103,18 @@ export class GameScene extends Phaser.Scene {
       const mid = this.cameras.main.midPoint;
       this.sfx?.handle(events, mid.x, mid.y);
       this.effects.add(events, this.world.time);
-      for (const e of events) if (e.type === 'rejected' && e.team === 1) this.hud?.toast(e.reason);
+      for (const e of events) {
+        if (e.type === 'rejected' && e.team === 1) this.hud?.toast(e.reason);
+        // Under-attack cue: enemy fire hitting our units or buildings (throttled).
+        if (e.type === 'attack' && e.team !== 1 && this.world.get(e.target)?.team === 1) {
+          this.lastAttack = { x: e.tx, y: e.ty };
+          if (this.world.time - (this.lastAlertAt ?? -Infinity) >= UNDER_ATTACK_COOLDOWN) {
+            this.lastAlertAt = this.world.time;
+            this.hud?.toast('Your base is under attack! (Space to jump there)');
+            this.sfx?.ui('alert');
+          }
+        }
+      }
     }
     this.render(this.acc / SIM_DT);
     this.hud?.update(this.world, this.game.loop.actualFps, this.ui);

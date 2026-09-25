@@ -5,18 +5,12 @@ it belongs to. The out-of-scope list in PROJECT.md always wins, and nothing
 here may bring back fog of war, extra factions, more than 2 tech tiers,
 multiplayer, extra maps or adaptive AI.
 
-## Phase 2: Scripted AI opponent
+## Phase 2: Scripted AI opponent (done)
 
-- [P2] Win/lose condition: destroy all enemy buildings.
-- [P2] AI opponent start position mirrored on the east side of the map (the east crystal field is already placed for it).
-- [P2] Population/supply cap so a boom-style AI can't make unlimited units.
-- [P2] Scouting: expose "what has the enemy built" queries in the sim for scripted reactions.
-- [P2] Kiting micro for Sparkers (step back while reloading). This would change the Striker-vs-Sparker counter, so retest it.
-- [P2] Minimap (click to jump, alert pings when under attack).
-- [P2] Under-attack notifications and audio cue.
-- [P2] Unit hold-position and patrol commands (helpful for turtle strategy AI & players).
-- [P2] Drones auto-flee or auto-retaliate when attacked while gathering.
-- [P2] Promote `test/bot.js` (the scripted sandbox bot) into the starting skeleton for the scripted AI; it already plays the full loop through `world.issue()`.
+These shipped in Phase 2: win/lose on the Command Core, the mirrored east start,
+the population cap, AI scouting, the scripted AI grown from `test/bot.js`,
+under-attack notifications, and the Ctrl+1–8 control-group fix. The ideas below
+were not built, so they move to Phase 3.
 
 ## Phase 3: Balance & polish
 
@@ -31,6 +25,17 @@ multiplayer, extra maps or adaptive AI.
 - [P3] Shift-queued waypoints/commands.
 - [P3] Building rotation/footprint variety.
 - [P3] Save/restore sandbox state (JSON snapshot of `World`).
-- [P3] Key rebinding: desktop Chrome swallows Ctrl+1–8, so Phase 1 also accepts Shift+1–9 for assigning control groups.
+- [P3] Key rebinding. Phase 2 fixed the Ctrl+1–8 conflict with Shift+digit, a HUD group bar and fullscreen Keyboard Lock, but full rebinding is still open.
 - [P3] Smarter formation slot assignment when a move target straddles an obstacle. Units may get jostled in one-tile lanes; they settle, but not always exactly on their slot.
 - [P3] Rendering: batch unit drawing into textures, or use sprite atlases generated at boot. The JS render cost is already only ~0.4 ms per frame with 40 units.
+- [P3] Kiting micro for Sparkers (step back while reloading). This changes the Striker-vs-Sparker counter, so retest it. (Moved from P2.)
+- [P3] Minimap with click-to-jump and alert pings. (Moved from P2; Space jumps to the last attack for now.)
+- [P3] Hold-position and patrol commands for players and the Turtle AI. (Moved from P2.)
+- [P3] Drones auto-flee or retaliate when attacked while gathering. (Moved from P2.)
+- [P3] **Strategy balance.** Fairness runs show Economy-Boom is clearly the strongest script and Rush the weakest against a defending, reacting player: Rush loses to Boom at Hard timing in every variant tried. Rebalance the scripts, or the unit and building data, so that each strategy has a matchup it wins.
+- [P3] **Side-bias audit.** Mirror matches are 47% west / 53% east over 108 games, but Boom mirrors lean 12/36 to the east. Candidate sources: unmirrored tie-breaks (placement spiral order, spawn ring scan, A* tie-breaking), id-order processing, and "keep right" chirality.
+- [P3] AI expansion to the middle crystal fields. Scripts never expand, so long games run the home field dry.
+- [P3] AI micro: focus fire, pulling damaged units back, and Spire-aware pathing when attacking.
+- [P3] AI retargeting from scouted memory, for enemy Cores built away from the start location. Today it targets the start location.
+- [P3] Grow the fairness harness into the Phase 3 AI-vs-AI balance matrix (all strategy pairs × tiers × more seeds), with result history.
+- [P3] Tune sudden death. 30:00 on score rarely triggers except against purely passive play.
