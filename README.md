@@ -182,12 +182,47 @@ live URL until it serves that exact commit.
 Three scripted player policies run on the same engine and play 12 fixed seeds
 against each tier. The sim is deterministic, so CI reproduces these exact numbers.
 
-| Player win rate | competent (Boom, Hard timing) | intermediate (Turtle, Easy timing) | novice (Rush, Easy timing) |
-|---|---|---|---|
-| vs **Easy** | 100% | 100% | 42% |
-| vs **Normal** | 92% | 100% | 0% |
-| vs **Hard** | 58% | 0% | 0% |
+- **competent:** Boom at Hard timing
+- **intermediate:** Turtle at Easy timing
+- **novice:** Rush, deliberately *slower* than the Easy AI (see below)
 
-A competent player beats every tier; Hard is a real fight, and a novice loses to all three.
+| Player win rate | competent | intermediate | novice |
+|---|---|---|---|
+| vs **Easy** | 100% | 50% | 0% |
+| vs **Normal** | 100% | 17% | 0% |
+| vs **Hard** | 67% | 0% | 0% |
+
+A competent player beats every tier, a novice loses to all three, and each
+policy's win rate falls from Easy to Hard.
+
+**Phase 3 change to the novice.** Phase 2 defined the novice as "Rush at Easy
+timing", which is exactly the Easy AI's own script and timing. Once the side
+bias was fixed, novice-vs-Easy became a pure mirror, a coin flip. The novice is
+now slower than the Easy AI on every axis:
+
+- a decision every 4 s (Easy: 2.5 s)
+- 6 s after each opening step (Easy: 2 s)
+- reactions after 40 s (Easy: 25 s)
+- 60% of the worker target (Easy: 70%)
+
+## Balance notes
+
+The full numbers and method are in [BALANCE.md](BALANCE.md).
+
+- **Before Phase 3.** The strategies formed a strict hierarchy (Boom > Turtle
+  > Rush), with every matchup 94–100% one way.
+- **Tuning.** Phase 3 tuned the strategy data to within about 40–60% in 17 of
+  18 matchups across the three tiers. The exception is **Turtle beating Rush
+  77% at Hard**: three strategies form a rock-paper-scissors triangle, and
+  every lever that fixed that cell broke another. At Hard, part of the
+  difficulty comes from which matchup you draw. That is a documented design
+  trade-off, and you can pick the AI's strategy on the start screen.
+- **Balance vs difficulty.** Balanced strategies removed the strength gap the
+  difficulty tiers relied on. Difficulty now also caps the AI's Foundries
+  (Easy 1, Normal 2). That keeps the fairness table above true, at the cost
+  of strategy balance at Easy and Normal, where Rush suffers most under the
+  cap (Turtle beats it 99% at Easy).
+- **Side bias.** The Boom mirror's east skew came from unmirrored tie-breaks.
+  It is fixed, and mirror matches now split 50/50.
 
 The headless tests load the exact PathFinding.js bundle the CDN serves, so they exercise the library build that ships.
