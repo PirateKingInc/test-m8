@@ -53,50 +53,13 @@ export function drawNode(g, n, t) {
   }
 }
 
-export function drawBuilding(g, b, color) {
-  const l = b.x - b.pw / 2 + 3, t = b.y - b.ph / 2 + 3, w = b.pw - 6, h = b.ph - 6;
-  const alpha = b.built ? 1 : 0.45 + 0.4 * b.progress;
-  g.fillStyle(0x10161f, alpha);
-  g.fillRoundedRect(l, t, w, h, 6);
-  g.lineStyle(2, color, alpha);
-  g.strokeRoundedRect(l, t, w, h, 6);
-  g.fillStyle(color, 0.25 * alpha);
-  g.fillRoundedRect(l + 6, t + 6, w - 12, h - 12, 4);
-  const cx = b.x, cy = b.y;
-  g.fillStyle(color, alpha);
-  if (b.type === 'core') {
-    g.fillCircle(cx, cy, 18);
-    g.fillStyle(0x10161f, alpha);
-    g.fillCircle(cx, cy, 10);
-    g.fillStyle(0xffffff, alpha);
-    g.fillCircle(cx, cy, 5);
-  } else if (b.type === 'depot') {
-    g.fillRect(cx - 18, cy - 4, 36, 8);
-    g.fillStyle(CRYSTAL, alpha);
-    g.fillTriangle(cx - 8, cy + 14, cx, cy - 16, cx + 8, cy + 14);
-  } else if (b.type === 'foundry') {
-    g.fillRect(cx - 20, cy - 16, 12, 32);
-    g.fillRect(cx - 4, cy - 10, 24, 20);
-    g.fillStyle(0xffc24a, alpha);
-    g.fillRect(cx + 2, cy - 4, 12, 8);
-  } else if (b.type === 'spire') {
-    g.fillTriangle(cx - 12, cy + 14, cx, cy - 18, cx + 12, cy + 14);
-    g.fillStyle(0xffffff, alpha);
-    g.fillCircle(cx, cy - 6, 4);
-  }
-  if (!b.built) {
-    // Construction: a rising fill plus a progress bar under the footprint.
-    g.fillStyle(color, 0.18);
-    g.fillRect(l, t + h * (1 - b.progress), w, h * b.progress);
-    g.fillStyle(0x000000, 0.6);
-    g.fillRect(l, t + h + 4, w, 4);
-    g.fillStyle(0xffc24a, 1);
-    g.fillRect(l, t + h + 4, w * b.progress, 4);
-    g.lineStyle(1, 0xffffff, 0.35);
-    for (let i = -h; i < w; i += 12) {
-      g.lineBetween(l + Math.max(i, 0), t + Math.max(-i, 0), l + Math.min(i + h, w), t + Math.min(h, w - i));
-    }
-  }
+// Construction progress bar under an unfinished building's footprint.
+export function drawProgress(g, b) {
+  const l = b.x - b.pw / 2 + 6, w = b.pw - 12, y = b.y + b.ph / 2 - 10;
+  g.fillStyle(0x000000, 0.7);
+  g.fillRect(l - 1, y - 1, w + 2, 7);
+  g.fillStyle(0xffc24a, 1);
+  g.fillRect(l, y, w * b.progress, 5);
 }
 
 const SELECT = 0x7dffb0;
