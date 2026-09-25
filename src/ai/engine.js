@@ -251,7 +251,7 @@ export class AiEngine {
     if (this.runExpansion()) return;
     // 3. More production when Lumen piles up, then strategy-specific structures.
     const foundries = this.mine('building', 'foundry').length;
-    if (!this.pendingBuild && foundries < (s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
+    if (!this.pendingBuild && foundries < this.foundryCap(s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
       if (this.tryBuild('foundry', foundries ? 'foundry2' : 'foundry')) return;
     }
     for (const st of s.structures || []) {
@@ -267,12 +267,16 @@ export class AiEngine {
     if (unit) this.tryTrain(unit, ARMY.maxFoundryQueue);
   }
 
+  // Difficulty caps how much production the AI runs (Phase 3): an easier tier
+  // simply builds fewer Foundries. It never changes the rules or gives resources.
+  foundryCap(n) { return Math.min(n, this.d.maxFoundries ?? Infinity); }
+
   // A strategy structure rule: { build, spots, max, minDrones?, armyPer? }. Wanted
   // while we have fewer than `max`, enough Drones, and (armyPer) at least
   // armyPer combat units per existing building of that type.
   structureWanted(st) {
     const have = this.mine('building', st.build).length;
-    if (have >= st.max) return false;
+    if (have >= (st.build === 'foundry' ? this.foundryCap(st.max) : st.max)) return false;
     if (st.minDrones && this.mine('unit', 'drone').length < st.minDrones) return false;
     if (st.armyPer && this.army().length < st.armyPer * have) return false;
     return this.lumen() >= BUILDINGS[st.build].cost;

@@ -6,10 +6,22 @@ import { DIFFICULTY } from '../../src/data/difficulty.js';
 
 export const SEEDS = Array.from({ length: 12 }, (_, i) => i + 1);
 
+// A beginner is slower than the Easy AI. Phase 2 defined the novice as "Rush at
+// Easy timing", which is exactly the Easy AI's own script and timing: once
+// Phase 3 removed the side bias, novice-vs-Easy became a pure mirror and a coin
+// flip. Phase 3 makes the novice deliberately slower than Easy instead.
+export const NOVICE_TIMING = {
+  ...DIFFICULTY.easy, name: 'Novice',
+  decisionInterval: 4, // vs Easy's 2.5 s
+  stepDelay: 6, // vs Easy's 2 s (Easy's Phase 2 value)
+  reactionDelay: 40, // vs Easy's 25 s
+  workerFactor: 0.6, // vs Easy's 0.7
+};
+
 export const POLICIES = {
   competent: { strategy: 'boom', difficulty: 'hard' },
   intermediate: { strategy: 'turtle', difficulty: 'easy' },
-  novice: { strategy: 'rush', difficulty: 'easy' },
+  novice: { strategy: 'rush', difficulty: NOVICE_TIMING },
 };
 
 // Player (team 1) win rate for one policy against one tier's default strategy.
