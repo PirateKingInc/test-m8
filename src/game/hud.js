@@ -70,6 +70,12 @@ export class Hud {
     doc.getElementById('result-title').className = title.toLowerCase();
     const opp = this.opponent ? ` The AI (${this.opponent.difficulty}) played ${this.opponent.strategy}.` : '';
     doc.getElementById('result-detail').textContent = `${why} Match time ${mm}:${ss}.${opp}`;
+    const table = doc.getElementById('result-stats');
+    if (table && this.stats) {
+      const them = this.opponent ? 'AI' : 'Team 2';
+      table.innerHTML = `<tr><th></th><th>You</th><th>${them}</th></tr>`
+        + this.stats.rows(PLAYER, PLAYER === 1 ? 2 : 1).map(([k, a, b]) => `<tr><td>${k}</td><td>${a}</td><td>${b}</td></tr>`).join('');
+    }
     doc.getElementById('result').hidden = false;
     doc.getElementById('play-again').onclick = () => location.reload();
     doc.getElementById('change-difficulty').onclick = () => { location.search = '?menu'; };
@@ -115,7 +121,7 @@ export class Hud {
     const sig = JSON.stringify(card);
     if (sig !== this.cardSig) {
       this.cardSig = sig;
-      this.el.card.innerHTML = card.map((b) => `<button data-action="${b.action}" ${b.enabled ? '' : 'disabled'} class="${b.active ? 'active' : ''}" title="${b.label} (${b.key})">`
+      this.el.card.innerHTML = card.map((b) => `<button data-action="${b.action}" ${b.enabled ? '' : 'disabled'} class="${b.active ? 'active' : ''}" title="${tooltip(b)}">`
         + `<span class="key">${b.key}</span>${b.label}${b.cost != null ? `<span class="cost">${b.cost}</span>` : ''}</button>`).join('');
     }
   }
@@ -152,6 +158,35 @@ export class Hud {
     return `<div class="sel-name">${sel.length} selected</div><div class="dim">${Object.entries(counts).map(([n, c]) => `${n} ×${c}`).join(' · ')}</div>`;
   }
 }
+
+// Command-card tooltip: name, hotkey, cost and the stats that matter (from data).
+export function tooltip(b) {
+  const [verb, type] = b.action.split(':');
+  if (verb === 'train' && UNITS[type]) {
+    const u = UNITS[type];
+    const range = u.range > 20 ? `range ${u.range}` : 'melee';
+    return `${u.name} (${b.key}): ${u.role}. ${u.cost} Lumen, ${u.supply} supply, ${u.trainTime}s. HP ${u.hp} ${u.armor}, ${u.damage} ${u.attack} / ${u.cooldown}s, ${range}.${COUNTER_HINTS[type] ? ` ${COUNTER_HINTS[type]}` : ''}`;
+  }
+  if (verb === 'build' && BUILDINGS[type]) {
+    const d = BUILDINGS[type];
+    return `${d.name} (${b.key}): ${BUILDING_HINTS[type](d)} ${d.cost} Lumen, ${d.buildTime}s, HP ${d.hp}.`;
+  }
+  return `${b.label} (${b.key})`;
+}
+
+const COUNTER_HINTS = {
+  drone: 'Mines Lumen and builds.',
+  striker: 'Beats Sparkers up close and Lancers.',
+  sparker: 'Beats Strikers at range and Lancers.',
+  bulwark: 'Beats Strikers and Sparkers; weak to Lancers.',
+  lancer: 'Beats Bulwarks; weak to Strikers and Sparkers.',
+};
+const BUILDING_HINTS = {
+  core: (d) => `Your base: trains Drones, +${d.supply} supply. Lose every Core and you lose.`,
+  depot: (d) => `Drones drop Lumen here; +${d.supply} supply.`,
+  foundry: () => 'Trains Strikers, Sparkers, Bulwarks and Lancers.',
+  spire: (d) => `Defensive turret: ${d.weapon.damage} ${d.weapon.attack} / ${d.weapon.cooldown}s at range ${d.weapon.range}.`,
+};
 
 // Fullscreen plus the Keyboard Lock API: in Chrome this makes Ctrl+1-9 reach the
 // page instead of switching tabs. Where either API is missing it fails quietly.
