@@ -11,7 +11,7 @@
 // - No Phaser, no DOM, no direct state mutation, no cheating.
 import { BUILDINGS } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
-import { STRATEGIES, SPOTS } from '../data/strategies.js';
+import { STRATEGIES, SPOTS, ARMY } from '../data/strategies.js';
 import { DIFFICULTY } from '../data/difficulty.js';
 import { canPlace } from '../sim/construction.js';
 import { supplyOf } from '../sim/supply.js';
@@ -41,7 +41,12 @@ export class AiEngine {
     this.nextStepAt = 0; // game time before which the next opening step waits (stepDelay)
     this.nextThinkAt = 0;
     this.pendingBuild = null;
-    this.stats = { commands: 0, rejected: 0, built: {}, trained: {} };
+    this.stats = { commands: 0, rejected: 0, built: {}, trained: {}, waves: 0, reachedEnemyBase: false, coreAssaults: 0 };
+    this.mode = 'gather'; // army state: gather | attack
+    this.wave = []; // ids of the units in the current attack wave
+    this.waveSize = 0;
+    this.rallySet = new Set();
+    this.depotsPlaced = 0;
   }
 
   // ---- acting -------------------------------------------------------------
@@ -128,6 +133,16 @@ export class AiEngine {
   }
 
   trackConstruction() {
+    // Any unfinished site of ours with nobody building it (the builder died or
+    // was pulled away) gets a new builder, so construction can never stall.
+    for (const b of this.mine('building')) {
+      if (b.built) continue;
+      const drones = this.mine('unit', 'drone');
+      if (!drones.length || drones.some((d) => d.order.type === 'build' && d.order.target === b.id)) continue;
+      const pick = drones.reduce((a, d) => (Math.hypot(d.x - b.x, d.y - b.y) < Math.hypot(a.x - b.x, a.y - b.y) ? d : a));
+      this.issue({ type: 'assist', ids: [pick.id], target: b.id });
+      this.note(`reassigned builder to ${b.type}`);
+    }
     if (!this.pendingBuild) return;
     const b = this.w.get(this.pendingBuild);
     if (!b) this.pendingBuild = null;
@@ -177,12 +192,181 @@ export class AiEngine {
     return this.step >= steps.length;
   }
 
+  // ---- macro loop (after the opening) --------------------------------------
+
+  macro() {
+    const s = this.s, sup = this.supply();
+    // 1. Supply: a new Depot before we run out.
+    const producers = this.mine('building', 'foundry').length + 1;
+    if (sup.cap < 60 && sup.free <= s.supplyBuffer + producers && !this.pendingBuild) {
+      const keys = s.depotSpots || ['depot'];
+      const key = keys[Math.min(this.mine('building', 'depot').length, keys.length - 1)];
+      if (this.tryBuild('depot', key)) return;
+    }
+    // 2. Workers up to the (difficulty-scaled) target, one at a time.
+    const core = this.mine('building', 'core').find((b) => b.built);
+    const target = Math.floor(s.workerTarget * this.d.workerFactor);
+    if (core && core.queue.length === 0 && this.mine('unit', 'drone').length < target) this.tryTrain('drone', 1);
+    // 3. More production when Lumen piles up, then strategy-specific structures.
+    const foundries = this.mine('building', 'foundry').length;
+    if (!this.pendingBuild && foundries < (s.maxFoundries ?? 1) && this.lumen() >= (s.floatLumen ?? Infinity)) {
+      if (this.tryBuild('foundry', foundries ? 'foundry2' : 'foundry')) return;
+    }
+    for (const st of s.structures || []) {
+      if (this.pendingBuild) break;
+      if (this.structureWanted(st)) { this.tryBuild(st.build, st.spot); break; }
+    }
+    // 4. Army from the composition weights, keeping Foundry queues short.
+    const unit = this.nextArmyUnit();
+    if (unit) this.tryTrain(unit, ARMY.maxFoundryQueue);
+  }
+
+  // Overridden by later slices' structure rules; none by default.
+  structureWanted() { return false; }
+
+  // The composition type furthest below its target share (counting living and
+  // queued units), so production follows the weights without any randomness.
+  composition() { return this.s.composition; }
+
+  nextArmyUnit() {
+    const weights = this.composition();
+    const types = Object.keys(weights).filter((t) => weights[t] > 0);
+    if (!types.length) return null;
+    const have = Object.fromEntries(types.map((t) => [t, 0]));
+    for (const u of this.army()) if (u.type in have) have[u.type]++;
+    for (const f of this.mine('building', 'foundry')) for (const q of f.queue) if (q.unit in have) have[q.unit]++;
+    const total = types.reduce((n, t) => n + have[t], 0) + 1;
+    const wsum = types.reduce((n, t) => n + weights[t], 0);
+    let best = null, bestGap = -Infinity;
+    for (const t of types) {
+      const gap = weights[t] / wsum - have[t] / total;
+      if (gap > bestGap) { bestGap = gap; best = t; }
+    }
+    return best;
+  }
+
+  // ---- army control -------------------------------------------------------
+
+  enemyTeam() { return this.team === 1 ? 2 : 1; }
+
+  // Both sides know the map, so both know where the enemy started.
+  enemyStart() {
+    const st = this.team === 1 ? this.w.map.aiStart : this.w.map.start;
+    const T = this.w.grid.tile;
+    return { x: (st.core[0] + 2) * T, y: (st.core[1] + 2) * T };
+  }
+
+  // What to hit: the enemy Command Core at its start if it still stands there,
+  // otherwise the enemy start itself (attack-move engages whatever is there).
+  attackTarget() {
+    const p = this.enemyStart();
+    for (const b of this.w.ofKind('building')) {
+      if (b.team === this.enemyTeam() && b.type === 'core' && Math.hypot(b.x - p.x, b.y - p.y) < 200) return b;
+    }
+    return null;
+  }
+
+  rallyPoint() {
+    const c = this.core(), e = this.enemyStart(), T = this.w.grid.tile;
+    const d = Math.hypot(e.x - c.x, e.y - c.y) || 1;
+    return { x: c.x + ((e.x - c.x) / d) * ARMY.rallyTiles * T, y: c.y + ((e.y - c.y) / d) * ARMY.rallyTiles * T };
+  }
+
+  nearBase(x, y) {
+    for (const b of this.mine('building')) if (Math.hypot(b.x - x, b.y - y) < ARMY.homeRadius) return true;
+    return false;
+  }
+
+  // Enemy combat units currently inside our base area.
+  intruders() {
+    const out = [];
+    for (const u of this.w.ofKind('unit')) {
+      if (u.team === this.enemyTeam() && COMBAT_TYPES.includes(u.type) && this.nearBase(u.x, u.y)) out.push(u);
+    }
+    return out;
+  }
+
+  commandArmy() {
+    const s = this.s;
+    const rally = this.rallyPoint();
+    for (const f of this.mine('building', 'foundry')) {
+      if (f.built && !this.rallySet.has(f.id)) { this.issue({ type: 'rally', building: f.id, ...rally }); this.rallySet.add(f.id); }
+    }
+    const army = this.army();
+    const inWave = new Set(this.wave.filter((id) => this.w.get(id)));
+    this.wave = [...inWave];
+    const home = army.filter((u) => !inWave.has(u.id));
+
+    // Defense: idle units at home go after intruders.
+    const threats = this.intruders();
+    if (threats.length) {
+      const idle = home.filter((u) => u.order.type !== 'attack' && u.order.type !== 'attackMove');
+      if (idle.length) this.issue({ type: 'attackMove', ids: idle.map((u) => u.id), x: threats[0].x, y: threats[0].y });
+    }
+
+    if (this.mode === 'attack') {
+      if (!this.wave.length || (s.retreatBelow != null && this.wave.length < s.retreatBelow * this.waveSize)) {
+        if (this.wave.length) { this.issue({ type: 'move', ids: this.wave, ...rally }); this.note(`retreat with ${this.wave.length}`); }
+        this.mode = 'gather';
+        this.wave = [];
+        return;
+      }
+      // Reinforcements travel in groups so they aren't fed in one at a time.
+      if (s.reinforce && home.length >= (s.reinforceMin ?? 1) && !threats.length) {
+        this.joinWave(home);
+      }
+      this.pressAttack();
+      return;
+    }
+    const need = this.stats.waves === 0 ? s.firstWave : s.wave;
+    if (!threats.length && home.length >= need) {
+      this.mode = 'attack';
+      this.waveSize = home.length;
+      this.stats.waves++;
+      this.note(`wave ${this.stats.waves}: ${home.length} units attack`);
+      this.joinWave(home);
+    }
+  }
+
+  joinWave(units) {
+    const t = this.attackTarget() || this.enemyStart();
+    this.issue({ type: 'attackMove', ids: units.map((u) => u.id), x: t.x, y: t.y });
+    for (const u of units) this.wave.push(u.id);
+  }
+
+  // Near the enemy Core with no enemy units around: hit the Core directly.
+  pressAttack() {
+    const core = this.attackTarget();
+    const units = this.wave.map((id) => this.w.get(id)).filter(Boolean);
+    if (!units.length) return;
+    const cx = units.reduce((a, u) => a + u.x, 0) / units.length, cy = units.reduce((a, u) => a + u.y, 0) / units.length;
+    const start = this.enemyStart();
+    if (Math.hypot(cx - start.x, cy - start.y) < ARMY.homeRadius) this.stats.reachedEnemyBase = true;
+    if (!core) return;
+    const near = units.filter((u) => Math.hypot(u.x - core.x, u.y - core.y) < ARMY.coreAssault + core.pw);
+    if (!near.length) {
+      const idle = units.filter((u) => u.order.type === 'idle');
+      if (idle.length) this.issue({ type: 'attackMove', ids: idle.map((u) => u.id), x: core.x, y: core.y });
+      return;
+    }
+    const defended = [...this.w.ofKind('unit')].some((e) => e.team === this.enemyTeam() && COMBAT_TYPES.includes(e.type)
+      && Math.hypot(e.x - core.x, e.y - core.y) < ARMY.coreAssault + core.pw);
+    const free = near.filter((u) => !(u.order.type === 'attack' && u.order.target === core.id) && u.order.type !== 'attack');
+    if (!defended && free.length) {
+      this.issue({ type: 'attack', ids: free.map((u) => u.id), target: core.id });
+      this.stats.coreAssaults++;
+    }
+  }
+
   // One decision round. The match loop calls update() every tick, which calls
   // think() every `decisionInterval`; the Phase 1 bot test calls think() directly.
   think() {
     this.trackConstruction();
     this.gatherIdle();
-    this.runOpening();
+    const opened = this.runOpening();
+    if (this.s.noMacro) return; // the Phase 1 sandbox script is opening-only
+    if (opened) this.macro();
+    this.commandArmy();
   }
 
   update() {
