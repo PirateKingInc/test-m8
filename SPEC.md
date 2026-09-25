@@ -404,7 +404,10 @@ never changes the rules, and never gives it resources.
   policies, the timing knobs barely affect outcomes. A lower worker factor
   can even help, because fewer Drones means an earlier army.
 - **The Foundry cap does.** A tier now handicaps the AI by capping how many
-  Foundries it runs. That is an execution limit, not a rule change.
+  Foundries it runs. That is an execution limit, not a rule change. Plainly,
+  Easy and Normal are now partly an **economic handicap on the AI**: it can't
+  convert income into an army as fast as the uncapped player. They are not
+  just a weaker script.
 - **New defaults.** They were re-picked from a policy × tier × strategy
   measurement: Easy = Turtle (a passive opponent a beginner can learn
   against), Normal = Rush, and Hard = Boom.
