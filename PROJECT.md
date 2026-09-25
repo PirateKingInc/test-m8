@@ -27,7 +27,7 @@ counter design every phase relies on. Phase-specific numbers are in
 |---|---|---|
 | **1 — Sandbox** | A playable sandbox with base building, gathering, production queues, unit control, pathfinding with steering, and combat that follows the counter design. **No AI opponent** and no win/lose condition. Neutral *test targets* exist only for verification and are not a game feature. Shipped to GitHub Pages. | done |
 | **2 — Scripted AI opponent** | An opponent that plays with the same rules and roster. It picks one of three scripted strategies (**rush**, **economy boom**, **turtle-and-tech**) and reacts to what it scouts. For example, it builds Lancers after seeing Bulwarks, or adds Spires after seeing an early rush. It adds a population (supply) cap for both sides and the win/lose condition: **destroying the enemy Command Core wins**, and losing your own loses. The player picks a difficulty, which selects the strategy and how tightly its script is timed. | done |
-| **3 — Balance & polish** | Headless simulated matches between the strategies to tune the unit and building data. The Phase 2 fairness harness is the starting point. Then polish: UX, feedback, performance and accessibility. | next |
+| **3 — Balance & polish** | Headless simulated matches between the strategies to tune the unit and building data. The Phase 2 fairness harness is the starting point. Then polish: UX, feedback, performance and accessibility. | done |
 
 ## Explicitly OUT OF SCOPE for the whole project
 
