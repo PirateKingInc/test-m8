@@ -1,9 +1,9 @@
 // A scripted "sandbox bot" that plays the whole Phase 1 loop through the public
 // command API only (world.issue), exactly like the UI does. Used by
 // test/bot.test.js as the end-to-end proof that the loop works.
-import { BUILDINGS } from '../src/data/buildings.js';
-import { UNITS } from '../src/data/units.js';
-import { canPlace } from '../src/sim/construction.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { UNITS } from '../data/units.js';
+import { canPlace } from '../sim/construction.js';
 
 const TEAM = 1;
 const BUILD_SPOTS = { depot: [17, 26], foundry: [14, 32], spire: [18, 31], core: [9, 34] };

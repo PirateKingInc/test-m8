@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, runUntil } from './helpers.js';
-import { SandboxBot } from './bot.js';
+import { SandboxBot } from '../src/ai/engine.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { UNITS } from '../src/data/units.js';
 
