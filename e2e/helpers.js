@@ -7,13 +7,15 @@ const CDN = {
     'node_modules/pathfinding/visual/lib/pathfinding-browser.min.js',
 };
 
-export async function openGame(page, query = '?mode=sandbox') {
+export async function openGame(page, query = '?mode=sandbox', { tutorial = false } = {}) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   for (const [url, file] of Object.entries(CDN)) {
     await page.route(url, (route) => route.fulfill({ body: readFileSync(file), contentType: 'text/javascript' }));
   }
+  // Most tests play as a returning player, so the first-run tutorial stays out of the way.
+  if (!tutorial) await page.addInitScript(() => { try { localStorage.setItem('prism-tutorial-v1', 'done'); } catch { /* ignore */ } });
   const crashed = new Promise((_, reject) => page.once('pageerror', reject));
   await page.goto(`/${query}`);
   // Fail fast with the real error instead of timing out if the page throws while booting.

@@ -5,6 +5,7 @@ import { STRATEGIES } from '../data/strategies.js';
 import { GameScene } from './scene.js';
 import { Hud } from './hud.js';
 import { Sfx } from './audio.js';
+import { Tutorial } from './tutorial.js';
 
 const Phaser = globalThis.Phaser;
 const params = new URLSearchParams(location.search);
@@ -31,6 +32,14 @@ function showMenu() {
   };
   buttons.forEach((b) => b.addEventListener('click', () => { difficulty = b.dataset.difficulty; describe(); }));
   describe();
+  const select = document.getElementById('strategy');
+  const describeStrategy = () => {
+    const id = select.value === 'auto' ? DIFFICULTY[difficulty].strategy : select.value;
+    document.getElementById('strategy-note').textContent = `${STRATEGIES[id].name}: ${STRATEGIES[id].description}`;
+  };
+  select.addEventListener('change', describeStrategy);
+  buttons.forEach((b) => b.addEventListener('click', describeStrategy));
+  describeStrategy();
   document.getElementById('start-match').addEventListener('click', () => {
     const strategy = document.getElementById('strategy').value;
     location.search = `?mode=match&difficulty=${difficulty}&strategy=${strategy}`;
@@ -55,7 +64,13 @@ function start(mode) {
   hud.setOpponent(match ? { difficulty: DIFFICULTY[difficulty].name, strategy: STRATEGIES[match.ai.strategyId].name } : null);
 
   // Audio may only start after a user gesture.
-  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => sfx.unlock(), { capture: true });
+  let greeted = false;
+  for (const ev of ['pointerdown', 'keydown']) {
+    addEventListener(ev, () => {
+      sfx.unlock();
+      if (match && !greeted) { greeted = true; sfx.ui('start'); } // the match-start horn, on the first gesture
+    }, { capture: true });
+  }
   addEventListener('keydown', (e) => { if (e.code === 'KeyM') hud.setMuted(sfx.toggleMute()); });
   hud.setMuted(sfx.muted);
 
@@ -68,6 +83,28 @@ function start(mode) {
     banner: false,
   });
 
+  const tutorial = startTutorial(sfx, !!match);
+  setInterval(() => { if (scene.ui && !world.result) tutorial.update(world, scene.ui); }, 250);
+
   // Handle for e2e tests and debugging.
-  window.__game = { world, scene, game, sfx, match };
+  window.__game = { world, scene, game, sfx, match, tutorial };
+}
+
+// The first-run hint panel (see tutorial.js); Help brings it back.
+function startTutorial(sfx, isMatch) {
+  const panel = document.getElementById('tutorial');
+  const render = (v) => {
+    panel.hidden = !v;
+    if (!v) return;
+    document.getElementById('tutorial-step').textContent = v.final ? 'done' : `${v.index} / ${v.total}`;
+    document.getElementById('tutorial-text').innerHTML = v.text;
+    document.getElementById('tutorial-skip').textContent = v.final ? 'Got it' : 'Skip';
+  };
+  const tutorial = new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch });
+  document.getElementById('tutorial-skip').addEventListener('click', () => tutorial.finish());
+  document.getElementById('help').addEventListener('click', () => {
+    Tutorial.reset();
+    Object.assign(tutorial, new Tutorial({ render, onAdvance: () => sfx.ui('hint'), match: isMatch }));
+  });
+  return tutorial;
 }

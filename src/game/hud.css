@@ -76,3 +76,19 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
   font-size: 15px; cursor: pointer; }
 .menu-row button.active { border-color: var(--accent); background: #12302d; }
 #menu select { margin-left: 8px; background: #131c2a; color: var(--text); border: 1px solid var(--edge); border-radius: 4px; padding: 4px; }
+#result-stats { margin: 14px auto 0; border-collapse: collapse; font-size: 13px; }
+#result-stats th { color: var(--dim); font-weight: 600; padding: 2px 14px; }
+#result-stats td { padding: 2px 14px; text-align: right; }
+#result-stats td:first-child { text-align: left; color: var(--dim); }
+#strategy-note { max-width: 380px; margin: 8px auto 0; min-height: 2.6em; }
+#help { background: transparent; color: var(--dim); border: 1px solid var(--edge); border-radius: 3px; font-size: 11px;
+  cursor: pointer; pointer-events: auto; }
+#tutorial { top: 36px; left: 12px; right: auto; width: 320px; padding: 8px 12px; border-width: 1px; border-radius: 6px;
+  border-color: var(--accent); z-index: 10; }
+#tutorial[hidden] { display: none; }
+#tutorial .tut-head { display: flex; gap: 8px; align-items: center; font-size: 11px; }
+#tutorial .tut-title { color: var(--accent); font-weight: 700; letter-spacing: 0.1em; }
+#tutorial p { margin: 6px 0 2px; font-size: 13px; line-height: 1.4; }
+#tutorial-skip { margin-left: auto; background: #131c2a; color: var(--text); border: 1px solid var(--edge); border-radius: 3px;
+  font-size: 11px; cursor: pointer; }
+#tutorial-skip:hover { border-color: var(--accent); }
