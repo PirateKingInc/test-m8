@@ -75,7 +75,7 @@ export class GameScene extends Phaser.Scene {
     if (k.RIGHT.isDown) dx += 1;
     if (k.UP.isDown) dy -= 1;
     if (k.DOWN.isDown) dy += 1;
-    if (this.pointerInside && !this.midDrag) {
+    if (this.pointerInside && !this.midDrag && !this.touchMode) {
       const { width, height } = this.scale;
       if (p.x < EDGE) dx -= 1;
       if (p.x > width - EDGE) dx += 1;

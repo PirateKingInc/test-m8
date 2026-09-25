@@ -92,3 +92,14 @@ kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 4px; font-si
 #tutorial-skip { margin-left: auto; background: #131c2a; color: var(--text); border: 1px solid var(--edge); border-radius: 3px;
   font-size: 11px; cursor: pointer; }
 #tutorial-skip:hover { border-color: var(--accent); }
+/* ---- Phase 4: touch chrome ---- */
+#touchbar { position: absolute; right: 8px; left: auto; top: 36px; display: flex; flex-direction: column; gap: 6px;
+  background: transparent; z-index: 12; }
+#touchbar[hidden] { display: none; }
+#touchbar button { width: 56px; height: 52px; background: var(--panel); color: var(--text); border: 1px solid var(--edge);
+  border-radius: 10px; font-size: 20px; line-height: 1; cursor: pointer; touch-action: manipulation; padding: 2px; }
+#touchbar button span { display: block; font-size: 10px; margin-top: 2px; color: var(--dim); }
+#touchbar button:disabled { opacity: 0.35; }
+#touchbar button.armed { border-color: #ffd24a; background: #3a2f10; box-shadow: 0 0 12px #ffd24a; }
+#touchbar button.armed span { color: #ffd24a; }
+#game { touch-action: none; } /* the canvas handles every gesture itself */

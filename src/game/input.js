@@ -5,6 +5,7 @@ import { BUILDINGS, BUILD_ORDER, PRODUCTION } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
 import { canPlace } from '../sim/construction.js';
 import { supplyOf } from '../sim/supply.js';
+import { TouchInput } from './touch.js';
 
 const DRAG_THRESHOLD = 6; // px on screen
 const DOUBLE_TAP = 0.35; // s
@@ -23,11 +24,17 @@ export class InputController {
     this.attackMode = false; // A pressed: next left-click is an attack-move
     this.devSpawn = null; // dev panel: unit type to spawn for team 2 on next left-click
     this.hover = { x: 0, y: 0 };
+    // Touch (Phase 4): an order armed from the action bar ('order' = the
+    // right-click command, 'attack' = attack-move), and a one-shot box select.
+    this.armed = null;
+    this.boxArmed = false;
+    this.touch = new TouchInput(this, () => scene.cameras.main);
 
     const input = scene.input;
-    input.on('pointerdown', (p) => this.onDown(p));
-    input.on('pointermove', (p) => this.onMove(p));
-    input.on('pointerup', (p) => this.onUp(p));
+    input.addPointer?.(2); // two fingers for pinch-zoom
+    input.on('pointerdown', (p) => (p.wasTouch ? this.touch.down(p) : this.onDown(p)));
+    input.on('pointermove', (p) => (p.wasTouch ? this.touch.move(p) : this.onMove(p)));
+    input.on('pointerup', (p) => (p.wasTouch ? this.touch.up(p) : this.onUp(p)));
     input.keyboard.on('keydown', (e) => this.onKey(e));
   }
 
@@ -86,6 +93,52 @@ export class InputController {
       this.selection.set([e.id]);
     }
     this.notify('select', { ids: [e.id] });
+  }
+
+  // ---- touch helpers (Phase 4) ------------------------------------------------
+
+  // Can the ➜ Order button do anything with this selection?
+  canOrder() {
+    return this.ownSelected('unit').length > 0 || this.ownSelected('building').some((b) => BUILDINGS[b.type].trains.length);
+  }
+
+  arm(mode) {
+    if (mode === 'attack' && !this.ownSelected('unit').length) return;
+    if (mode === 'order' && !this.canOrder()) return;
+    this.armed = this.armed === mode ? null : mode; // tapping the armed button again disarms
+    this.placing = null;
+    this.boxArmed = false;
+    this.notify('arm', { mode: this.armed });
+  }
+
+  disarm() {
+    this.armed = null;
+    this.boxArmed = false;
+    this.placing = null;
+    this.drag = null;
+    this.notify('arm', { mode: null });
+  }
+
+  armBox() {
+    this.boxArmed = !this.boxArmed;
+    this.armed = null;
+    this.placing = null;
+    this.notify('arm', { mode: this.boxArmed ? 'box' : null });
+  }
+
+  stop() {
+    const ids = this.ownSelected('unit').map((u) => u.id);
+    if (ids.length) this.world.issue({ type: 'stop', ids });
+  }
+
+  // Double-tap: every own unit of `type` inside the visible world rectangle.
+  selectAllOnScreen(type, view) {
+    const ids = [];
+    for (const u of this.world.ofKind('unit')) {
+      if (u.team === PLAYER && u.type === type && u.x >= view.x && u.x <= view.right && u.y >= view.y && u.y <= view.bottom) ids.push(u.id);
+    }
+    this.selection.set(ids);
+    if (ids.length) this.notify('select', { ids });
   }
 
   ownSelected(kind) {
