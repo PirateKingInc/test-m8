@@ -2,7 +2,7 @@
 // Driven by the sim's event stream plus UI notifications. Rate-limited per
 // sound and capped in total voices so 40 units fighting never clip.
 
-const MIN_GAP = { attack: 0.07, death: 0.05, dropoff: 0.12, select: 0.05, command: 0.05, rejected: 0.3, built: 0.2, trained: 0.15 };
+const MIN_GAP = { alert0: 1, alert1: 1, attack: 0.07, death: 0.05, dropoff: 0.12, select: 0.05, command: 0.05, rejected: 0.3, built: 0.2, trained: 0.15 };
 const MAX_VOICES = 14;
 const HEARING = 1400; // px from the camera center at which world sounds fade out
 
@@ -84,6 +84,10 @@ export class Sfx {
     if (name === 'select') this.tone('select', { freq: 880, to: 990, dur: 0.05, vol: 0.25 });
     else if (name === 'command') { this.tone('command', { freq: 520, to: 700, type: 'triangle', dur: 0.07, vol: 0.3 }); }
     else if (name === 'rejected') this.tone('rejected', { freq: 150, to: 110, type: 'square', dur: 0.18, vol: 0.25 });
+    else if (name === 'alert') {
+      this.tone('alert0', { freq: 880, to: 660, type: 'square', dur: 0.16, vol: 0.22 });
+      this.tone('alert1', { freq: 880, to: 660, type: 'square', dur: 0.16, vol: 0.22, delay: 0.22 });
+    }
   }
 
   // World events, attenuated by distance from the camera center (cx, cy).

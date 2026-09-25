@@ -406,8 +406,11 @@ the default above), or play the Phase 1 **Sandbox** with no opponent.
     recall it, and Shift-click or right-click to assign the current selection.
   - A **Fullscreen** button requests the Keyboard Lock API, which lets Chrome
     deliver Ctrl+1–9 to the game while in fullscreen.
-- **Esc** during a match does nothing new. The result screen offers
-  **Play again** and **Change difficulty**.
+- **Under attack:** when enemy fire hits your units or buildings, a toast and a
+  two-tone alarm fire (at most once per 15 s of game time), and **Space** jumps
+  the camera to the last attack.
+- The result screen offers **Play again** (same setup) and **Change difficulty**
+  (back to the start screen).
 
 ## Phase 2 verification
 
